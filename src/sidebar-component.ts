@@ -206,7 +206,6 @@ export class SidebarComponent implements Component {
 		const config = getActiveConfig();
 		if (!config.enabled) return [];
 
-		const termHeight = this.tui.terminal.rows;
 		const borderPrefix = BORDER_CHARS[config.borderStyle] ?? BORDER_CHARS.line;
 		const borderColWidth = visibleWidth(borderPrefix);
 		const innerWidth = Math.max(8, width - borderColWidth);
@@ -450,7 +449,7 @@ export class SidebarComponent implements Component {
 				const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
 				if (servers.length > 0) {
 					for (const s of servers) {
-						topLines.push(success(`• ${s}`));
+						topLines.push(`${success("● ")}${accent(s)} ${dim("ready")}`);
 					}
 				} else {
 					topLines.push(muted("LSP neaktivní"));
@@ -617,8 +616,8 @@ export class SidebarComponent implements Component {
 		// =========================================================================
 		bottomLines.push(header("ZKRATKY", "⌨️"));
 		bottomLines.push(dim("⌨️ ctrl+shift+b    « sbalit/rozbalit"));
-		bottomLines.push(dim("⌨️ ctrl+shift+↑/↓  posun"));
-		bottomLines.push(dim("⌨️ ctrl+shift+←/→  šířka"));
+		bottomLines.push(dim("⌨️ ctrl+shift+u/d  posun (±3)"));
+		bottomLines.push(dim("⌨️ ctrl+shift+←/→  šířka (±4)"));
 		bottomLines.push("");
 
 		// =========================================================================
@@ -636,7 +635,10 @@ export class SidebarComponent implements Component {
 		// Assemble All Content & Apply Independent Vertical Scrolling
 		// =========================================================================
 		const totalLines = topLines.length + bottomLines.length;
-		const viewportHeight = termHeight > 0 ? termHeight : Math.max(totalLines, 24);
+		const effectiveRows =
+			this.tui.terminal?.rows || process.stdout?.rows || 24;
+		const viewportHeight =
+			effectiveRows > 0 ? effectiveRows : Math.max(totalLines, 24);
 
 		let allContentLines: string[];
 		if (totalLines <= viewportHeight) {

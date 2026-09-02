@@ -285,7 +285,7 @@ export function registerSidebarCommands(
 					"",
 					"### Klávesové zkratky a ovládání:",
 					"  ctrl+shift+b               — Přepnout sbalení / rozbalení («)",
-					"  ctrl+shift+↑/↓             — Posunout obsah panelu nahoru/dolů (±3 řádky)",
+					"  ctrl+shift+u/d             — Posunout obsah panelu nahoru/dolů (±3 řádky)",
 					"  ctrl+shift+pageUp/Down     — Posunout o celou stránku (±10 řádků)",
 					"  ctrl+shift+→/←             — Zvětšit / zmenšit šířku panelu (±4 sloupce)",
 					"",

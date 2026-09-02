@@ -246,14 +246,14 @@ export default function (pi: ExtensionAPI): void {
 		},
 	});
 
-	pi.registerShortcut("ctrl+shift+up", {
+	pi.registerShortcut("ctrl+shift+u", {
 		description: "Posunout postranní panel nahoru (-3 řádky)",
 		handler: () => {
 			scrollSidebar(-3);
 		},
 	});
 
-	pi.registerShortcut("ctrl+shift+down", {
+	pi.registerShortcut("ctrl+shift+d", {
 		description: "Posunout postranní panel dolů (+3 řádky)",
 		handler: () => {
 			scrollSidebar(3);

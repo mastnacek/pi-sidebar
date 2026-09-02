@@ -46,8 +46,8 @@ Provides an elegant, non-intrusive vertical sidebar docked to the right edge of 
 | `ctrl+shift+b` | **Toggle Collapse** | Collapse (`«`) or expand sidebar overlay |
 | `ctrl+shift+right` | **Wider** | Increase sidebar column width (+4 columns) |
 | `ctrl+shift+left` | **Narrower** | Decrease sidebar column width (-4 columns) |
-| `ctrl+shift+up` | **Scroll Up** | Scroll sidebar upward (-3 lines) |
-| `ctrl+shift+down` | **Scroll Down** | Scroll sidebar downward (+3 lines) |
+| `ctrl+shift+u` | **Scroll Up** | Scroll sidebar upward (-3 lines) |
+| `ctrl+shift+d` | **Scroll Down** | Scroll sidebar downward (+3 lines) |
 | `ctrl+shift+pageUp` | **Page Up** | Scroll sidebar page up (-10 lines) |
 | `ctrl+shift+pageDown` | **Page Down** | Scroll sidebar page down (+10 lines) |
 
