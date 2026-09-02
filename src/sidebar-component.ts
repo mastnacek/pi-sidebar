@@ -2,7 +2,6 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 	Theme,
-	ThemeColor,
 } from "@earendil-works/pi-coding-agent";
 import {
 	type Component,
@@ -14,7 +13,6 @@ import { getActiveConfig } from "./config.js";
 import { formatProjectPath, getGitInfo } from "./git.js";
 import {
 	contextBar,
-	formatEpochResetTime,
 	formatResetTime,
 	getKimiQuotas,
 	getZaiQuotas,
@@ -29,6 +27,7 @@ import {
 	getSessionStats,
 	isAutoCompactEnabled,
 } from "./stats.js";
+import type { FooterDataProviderLike } from "./types.js";
 
 const BORDER_CHARS = {
 	line: "│ ",
@@ -38,12 +37,20 @@ const BORDER_CHARS = {
 	none: "",
 };
 
+function cleanStatusText(text: string): string {
+	return text
+		.replace(/[\r\n\t]+/g, " ")
+		.replace(/ +/g, " ")
+		.trim();
+}
+
 export class SidebarComponent implements Component {
 	private tui: TUI;
 	private pi: ExtensionAPI;
 	private ctx: ExtensionContext;
 	private theme: Theme;
 	private sessionStartIso: string;
+	private footerData: FooterDataProviderLike | null = null;
 
 	constructor(tui: TUI, pi: ExtensionAPI, ctx: ExtensionContext, theme: Theme) {
 		this.tui = tui;
@@ -59,6 +66,10 @@ export class SidebarComponent implements Component {
 
 	updateTheme(theme: Theme): void {
 		this.theme = theme;
+	}
+
+	updateFooterData(footerData: FooterDataProviderLike | null): void {
+		this.footerData = footerData;
 	}
 
 	invalidate(): void {
@@ -82,7 +93,6 @@ export class SidebarComponent implements Component {
 				break;
 			}
 
-			// Try to break at path separators, punctuation, or spaces
 			let sliceLen = maxWidth;
 			let foundBreak = false;
 
@@ -98,7 +108,8 @@ export class SidebarComponent implements Component {
 					char === ":" ||
 					char === " " ||
 					char === "-" ||
-					char === "•"
+					char === "•" ||
+					char === "|"
 				) {
 					sliceLen = i;
 					foundBreak = true;
@@ -134,6 +145,12 @@ export class SidebarComponent implements Component {
 		const warning = (s: string) => th.fg("warning", s);
 		const error = (s: string) => th.fg("error", s);
 
+		const header = (title: string, icon?: string) => {
+			const label = icon ? `${icon} ${title}` : title;
+			const lineLen = Math.max(1, innerWidth - visibleWidth(label) - 4);
+			return `${accent(`── ${label} `)}${dim("─".repeat(lineLen))}`;
+		};
+
 		const topLines: string[] = [];
 		const bottomLines: string[] = [];
 
@@ -153,11 +170,12 @@ export class SidebarComponent implements Component {
 					: success;
 
 		// =========================================================================
-		// PRESET: DETAILED (Full Eldritch-Style Dashboard in Sidebar)
+		// PRESET: DETAILED (Full Telemetry & Status Line in Sidebar)
 		// =========================================================================
 		if (config.preset === "detailed") {
 			// 1. Session Section
 			if (config.showSession) {
+				topLines.push(header("SESSION"));
 				const sessionName = this.ctx.sessionManager.getSessionName();
 				const sessionTitle = sessionName
 					? `🏷️ ${sessionName}`
@@ -170,10 +188,11 @@ export class SidebarComponent implements Component {
 
 			// 2. Model & Thinking Section
 			if (config.showModel && model) {
-				topLines.push(accent("Model"));
+				topLines.push(header("MODEL"));
 				const modelId = model.id || "no-model";
 				const providerTag = model.provider ? `(${model.provider})` : "";
-				topLines.push(muted(`${modelId} ${dim(providerTag)}`.trim()));
+				topLines.push(accent(modelId));
+				if (providerTag) topLines.push(dim(providerTag));
 
 				if (model.reasoning) {
 					const level = this.pi.getThinkingLevel() || "off";
@@ -184,9 +203,9 @@ export class SidebarComponent implements Component {
 				topLines.push("");
 			}
 
-			// 3. Context & Auto-Compaction Section
+			// 3. Context & Cost Section
 			if (config.showContext) {
-				topLines.push(accent("Context"));
+				topLines.push(header("CONTEXT"));
 
 				const barW = Math.max(6, Math.min(10, innerWidth - 6));
 				const autoStr = isAutoCompactEnabled(this.ctx.cwd) ? " (auto)" : "";
@@ -198,23 +217,24 @@ export class SidebarComponent implements Component {
 				const tokensUsed =
 					stats.contextTokens ??
 					stats.totalInputTokens + stats.totalOutputTokens;
-				const windowStr = `${formatTokensCompact(tokensUsed)} / ${formatTokensCompact(stats.contextWindow)}`;
+				const windowStr = `${formatTokensCompact(tokensUsed)} / ${formatTokensCompact(stats.contextWindow)} tokens`;
 				topLines.push(muted(windowStr));
 
-				const costStr = `💰 $${(stats.totalCost || 0).toFixed(stats.totalCost < 0.01 ? 4 : 3)}`;
+				const costStr = `💰 $${(stats.totalCost || 0).toFixed(stats.totalCost < 0.01 ? 4 : 3)} spent`;
 				topLines.push(warning(costStr));
 				topLines.push("");
 			}
 
 			// 4. Token & Cache Breakdown Section
 			if (config.showCache) {
-				const inOutStr = `↑ ${formatTokensCompact(stats.totalInputTokens)}  ↓ ${formatTokensCompact(stats.totalOutputTokens)}`;
+				topLines.push(header("TOKENS & CACHE"));
+				const inOutStr = `↑ ${formatTokensCompact(stats.totalInputTokens)} in  ↓ ${formatTokensCompact(stats.totalOutputTokens)} out`;
 				topLines.push(dim(inOutStr));
 
 				if (stats.totalCacheRead > 0 || stats.totalCacheWrite > 0) {
-					let cacheStr = `📦 ${formatTokensCompact(stats.totalCacheRead)}`;
+					let cacheStr = `📦 ${formatTokensCompact(stats.totalCacheRead)} cache`;
 					if (stats.cacheHitRate !== undefined) {
-						cacheStr += ` 🎯${stats.cacheHitRate.toFixed(0)}%`;
+						cacheStr += ` 🎯${stats.cacheHitRate.toFixed(0)}% hit`;
 					}
 					topLines.push(muted(cacheStr));
 				}
@@ -232,7 +252,7 @@ export class SidebarComponent implements Component {
 				const zai = getZaiQuotas();
 
 				if (isKimi && kimi?.usage) {
-					topLines.push(accent("Kimi Quota"));
+					topLines.push(header("QUOTA"));
 					const used = Number(kimi.usage.used ?? 0);
 					const limit = Number(kimi.usage.limit ?? 0);
 					const pct = limit > 0 ? (used / limit) * 100 : 0;
@@ -252,7 +272,7 @@ export class SidebarComponent implements Component {
 					}
 					topLines.push("");
 				} else if (isZai && zai?.limits?.length) {
-					topLines.push(accent("Z.ai Quota"));
+					topLines.push(header("QUOTA"));
 					const zLimits = zai.limits.filter((l) => l.type === "TOKENS_LIMIT");
 					const fiveHour = zLimits.find((l) => l.unit === 3) ?? zLimits[0];
 					const weekly = zLimits.find((l) => l.unit === 6) ?? zLimits[1];
@@ -277,9 +297,38 @@ export class SidebarComponent implements Component {
 				}
 			}
 
-			// 6. LSP Section
+			// 6. Extension Statuses (Moved from bottom status line!)
+			if (config.showExtensions && this.footerData) {
+				const extMap = this.footerData.getExtensionStatuses();
+				if (extMap && extMap.size > 0) {
+					topLines.push(header("EXTENSIONS"));
+					for (const [key, rawVal] of Array.from(extMap.entries()).sort(
+						([a], [b]) => a.localeCompare(b),
+					)) {
+						if (!rawVal) continue;
+						const cleaned = cleanStatusText(rawVal);
+						if (!cleaned) continue;
+
+						let prefix = "• ";
+						if (key.includes("translate")) prefix = "🌐 ";
+						else if (key.includes("spai")) prefix = "📋 ";
+						else if (key.includes("radar") || key.includes("adr"))
+							prefix = "🛡️ ";
+						else if (key.includes("subagent")) prefix = "🤖 ";
+						else if (key.includes("lsp")) prefix = "⚡ ";
+
+						const fullItem = `${prefix}${cleaned}`;
+						for (const wrapped of this.wrapText(fullItem, innerWidth)) {
+							topLines.push(muted(wrapped));
+						}
+					}
+					topLines.push("");
+				}
+			}
+
+			// 7. LSP & Tools Section
 			if (config.showLsp) {
-				topLines.push(accent("LSP"));
+				topLines.push(header("LSP & TOOLS"));
 				let activeTools: string[] = [];
 				try {
 					activeTools = this.pi.getActiveTools();
@@ -296,7 +345,10 @@ export class SidebarComponent implements Component {
 				});
 
 				if (lspTools.length > 0) {
-					topLines.push(muted(`Active (${lspTools.length} tools)`));
+					topLines.push(success(`⚡ ${lspTools.length} active LSPs`));
+					for (const tool of lspTools.slice(0, 3)) {
+						topLines.push(dim(`  • ${tool}`));
+					}
 				} else {
 					topLines.push(muted("LSPs disabled"));
 				}
@@ -305,7 +357,7 @@ export class SidebarComponent implements Component {
 		}
 
 		// =========================================================================
-		// PRESET: COMPACT (Minimal vertical height)
+		// PRESET: COMPACT (Minimal vertical lines)
 		// =========================================================================
 		else if (config.preset === "compact") {
 			if (config.showSession) {
@@ -403,21 +455,28 @@ export class SidebarComponent implements Component {
 			const cwd = this.ctx.cwd;
 			const gitInfo = getGitInfo(cwd);
 			const formattedPath = formatProjectPath(cwd, gitInfo.branch);
-			const wrappedPath = this.wrapText(formattedPath, innerWidth);
 
-			for (const line of wrappedPath) {
-				bottomLines.push(th.fg("customMessageLabel", line));
+			if (config.preset === "detailed") {
+				bottomLines.push(header("WORKSPACE"));
+				const wrappedPath = this.wrapText(`📁 ${formattedPath}`, innerWidth);
+				for (const line of wrappedPath) {
+					bottomLines.push(th.fg("customMessageLabel", line));
+				}
+
+				if (gitInfo.branch) {
+					const dirtyIcon = gitInfo.dirty ? "● dirty" : "○ clean";
+					const dirtyColor = gitInfo.dirty ? warning : success;
+					let gitMeta = `🌿 ${gitInfo.branch} ${dirtyColor(dirtyIcon)}`;
+					if (gitInfo.ahead > 0) gitMeta += dim(` ▸${gitInfo.ahead}`);
+					if (gitInfo.behind > 0) gitMeta += dim(` ◂${gitInfo.behind}`);
+					bottomLines.push(gitMeta);
+				}
+			} else {
+				const wrappedPath = this.wrapText(formattedPath, innerWidth);
+				for (const line of wrappedPath) {
+					bottomLines.push(th.fg("customMessageLabel", line));
+				}
 			}
-
-			if (config.preset === "detailed" && gitInfo.branch) {
-				const dirtyIcon = gitInfo.dirty ? "● dirty" : "○ clean";
-				const dirtyColor = gitInfo.dirty ? warning : success;
-				let gitMeta = dirtyColor(dirtyIcon);
-				if (gitInfo.ahead > 0) gitMeta += dim(` ▸${gitInfo.ahead}`);
-				if (gitInfo.behind > 0) gitMeta += dim(` ◂${gitInfo.behind}`);
-				bottomLines.push(gitMeta);
-			}
-
 			bottomLines.push("");
 		}
 

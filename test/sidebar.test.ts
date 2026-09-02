@@ -23,6 +23,8 @@ test("DEFAULT_CONFIG has valid OpenCode defaults", () => {
 	assert.equal(DEFAULT_CONFIG.showModel, true);
 	assert.equal(DEFAULT_CONFIG.showQuota, true);
 	assert.equal(DEFAULT_CONFIG.showCache, true);
+	assert.equal(DEFAULT_CONFIG.showExtensions, true);
+	assert.equal(DEFAULT_CONFIG.hideBottomFooter, false);
 });
 
 test("formatTokens formats token counts cleanly", () => {
@@ -83,9 +85,15 @@ test("getGitInfo returns branch information in git directory", () => {
 });
 
 test("getActiveConfig and setActiveConfig update active state", () => {
-	const custom = { ...DEFAULT_CONFIG, width: 32, preset: "detailed" as const };
+	const custom = {
+		...DEFAULT_CONFIG,
+		width: 32,
+		preset: "detailed" as const,
+		hideBottomFooter: true,
+	};
 	setActiveConfig(custom);
 	assert.equal(getActiveConfig().width, 32);
 	assert.equal(getActiveConfig().preset, "detailed");
+	assert.equal(getActiveConfig().hideBottomFooter, true);
 	setActiveConfig(DEFAULT_CONFIG);
 });

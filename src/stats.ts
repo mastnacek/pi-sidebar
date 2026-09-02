@@ -1,5 +1,8 @@
 import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { ExtensionContext, ThemeColor } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionContext,
+	ThemeColor,
+} from "@earendil-works/pi-coding-agent";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -44,8 +47,7 @@ export function getSessionStats(ctx: ExtensionContext): SessionStats {
 					totalCacheWrite += u.cacheWrite ?? 0;
 					totalCost += u.cost?.total ?? 0;
 
-					const prompt =
-						(u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0);
+					const prompt = (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0);
 					if (prompt > 0) {
 						latestCacheHitRate = ((u.cacheRead ?? 0) / prompt) * 100;
 					}

@@ -107,10 +107,7 @@ export async function refreshKimiQuota(
 	if (force) {
 		kimiPollState.consecutiveErrors = 0;
 		kimiPollState.currentTtlMs = BASE_QUOTA_TTL_MS;
-	} else if (
-		Date.now() - kimiPollState.fetchedAt <
-		kimiPollState.currentTtlMs
-	) {
+	} else if (Date.now() - kimiPollState.fetchedAt < kimiPollState.currentTtlMs) {
 		return;
 	}
 
