@@ -14,7 +14,7 @@ import {
 import { SidebarAwareEditor } from "./src/editor-wrapper.js";
 import { refreshKimiQuota, refreshZaiQuota } from "./src/quota.js";
 import { SidebarComponent } from "./src/sidebar-component.js";
-import type { FooterDataProviderLike, SidebarConfig } from "./src/types.js";
+import type { SidebarConfig } from "./src/types.js";
 
 class InvisibleMountComponent implements Component {
 	render(_width: number): string[] {
@@ -29,17 +29,12 @@ export default function (pi: ExtensionAPI): void {
 	let currentTui: TUI | null = null;
 	let currentContext: ExtensionContext | null = null;
 	let currentTheme: Theme | null = null;
-	let capturedFooterData: FooterDataProviderLike | null = null;
-	let unsubBranch: (() => void) | null = null;
 
 	const refreshUI = () => {
 		if (currentTui && currentContext && currentTheme) {
 			if (sidebarComponent) {
 				sidebarComponent.updateContext(currentContext);
 				sidebarComponent.updateTheme(currentTheme);
-				if (capturedFooterData) {
-					sidebarComponent.updateFooterData(capturedFooterData);
-				}
 			}
 			currentTui.requestRender();
 		}
@@ -54,34 +49,6 @@ export default function (pi: ExtensionAPI): void {
 			model?.provider === "zai-coding"
 		) {
 			void refreshZaiQuota(force, refreshUI);
-		}
-	}
-
-	function updateFooterHook(ctx: ExtensionContext, config: SidebarConfig): void {
-		if (!ctx.hasUI || ctx.mode !== "tui") return;
-
-		if (config.hideBottomFooter) {
-			ctx.ui.setFooter((_tui, _theme, footerData) => {
-				capturedFooterData = footerData;
-				if (sidebarComponent) {
-					sidebarComponent.updateFooterData(footerData);
-				}
-				unsubBranch?.();
-				unsubBranch = footerData.onBranchChange(() => {
-					refreshUI();
-				});
-
-				return {
-					dispose: () => {
-						unsubBranch?.();
-						unsubBranch = null;
-					},
-					invalidate() {},
-					render(_width: number): string[] {
-						return [];
-					},
-				};
-			});
 		}
 	}
 
@@ -112,14 +79,8 @@ export default function (pi: ExtensionAPI): void {
 		if (sidebarComponent) {
 			sidebarComponent.updateContext(ctx);
 			sidebarComponent.updateTheme(theme);
-			if (capturedFooterData) {
-				sidebarComponent.updateFooterData(capturedFooterData);
-			}
 		} else {
 			sidebarComponent = new SidebarComponent(tui, pi, ctx, theme);
-			if (capturedFooterData) {
-				sidebarComponent.updateFooterData(capturedFooterData);
-			}
 		}
 
 		overlayHandle = tui.showOverlay(sidebarComponent, {
@@ -137,7 +98,6 @@ export default function (pi: ExtensionAPI): void {
 		// Wrap the input editor so it stops before the sidebar
 		ctx.ui.setEditorComponent((t, th, kb) => new SidebarAwareEditor(t, th, kb));
 
-		updateFooterHook(ctx, config);
 		pollActiveQuotas();
 		tui.requestRender();
 	}
@@ -197,8 +157,6 @@ export default function (pi: ExtensionAPI): void {
 			overlayHandle.hide();
 			overlayHandle = null;
 		}
-		unsubBranch?.();
-		unsubBranch = null;
 		sidebarComponent = null;
 		currentTui = null;
 	});

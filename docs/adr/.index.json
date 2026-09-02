@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-09-02T10:19:13.253Z",
+  "lastUpdated": "2026-09-02T10:22:07.862Z",
   "records": [
     {
       "id": "ADR-001",
@@ -16,6 +16,14 @@
       "date": "2026-09-02 12:19:13",
       "file": "2026-09-02-ADR-002-refactor-core.md",
       "constraint": "│ 🏷️ refactor-core: (use \"git push\" to publish your local commits) Changes not staged for commit:   (use \"git add <file>...\" to update what will be committed)   (use \"git restore <file>...\" to discard changes in working",
+      "status": "active"
+    },
+    {
+      "id": "ADR-003",
+      "title": "Architectural Workaround & Constraint",
+      "date": "2026-09-02 12:22:07",
+      "file": "2026-09-02-ADR-003-architectural-workaround-constraint.md",
+      "constraint": "Architectural Workaround & Constraint: warning: in the working copy of 'docs/adr/.index.json', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'src/commands.ts', LF will be replaced by CRLF the next",
       "status": "active"
     }
   ]

@@ -26,7 +26,6 @@ const COMMAND_DOCS: Record<string, string> = {
 	status: "display current sidebar configuration and metrics",
 	width: "set sidebar column width (16-60)",
 	preset: "switch content preset (opencode | compact | detailed)",
-	footer: "toggle bottom footer visibility (hide | show)",
 	refresh: "refresh provider quota meters (Kimi & Z.ai)",
 	branding: "switch branding text (opencode | pi | custom)",
 	border: "set border style (line | double | dotted | space | none)",
@@ -52,7 +51,9 @@ export function registerSidebarCommands(
 				const cmd = (tokens[0] ?? "").toLowerCase();
 
 				if (
-					["on", "off", "toggle", "status", "refresh", "reset", "help"].includes(cmd)
+					["on", "off", "toggle", "status", "refresh", "reset", "help"].includes(
+						cmd,
+					)
 				) {
 					return null;
 				}
@@ -101,29 +102,10 @@ export function registerSidebarCommands(
 						{
 							value: "preset detailed",
 							label: "preset detailed",
-							description: "Full dashboard with status lines in sidebar",
+							description: "Full telemetry dashboard in sidebar",
 						},
 					];
 					const filtered = presets.filter((i) =>
-						i.value.toLowerCase().startsWith(normalizedPrefix),
-					);
-					return filtered.length > 0 ? filtered : null;
-				}
-
-				if (cmd === "footer") {
-					const footers = [
-						{
-							value: "footer hide",
-							label: "footer hide",
-							description: "Hide bottom footer (move all status to sidebar)",
-						},
-						{
-							value: "footer show",
-							label: "footer show",
-							description: "Show bottom footer alongside sidebar",
-						},
-					];
-					const filtered = footers.filter((i) =>
 						i.value.toLowerCase().startsWith(normalizedPrefix),
 					);
 					return filtered.length > 0 ? filtered : null;
@@ -225,7 +207,6 @@ export function registerSidebarCommands(
 					"  /sidebar on|off|toggle     — Toggle sidebar visibility",
 					"  /sidebar status            — Show active configuration & metrics",
 					"  /sidebar preset <name>     — Switch preset (opencode | compact | detailed)",
-					"  /sidebar footer <hide|show>— Control bottom footer visibility",
 					"  /sidebar refresh           — Force refresh Kimi and Z.ai quotas",
 					"  /sidebar width <16-60>     — Adjust column width (default: 28)",
 					"  /sidebar branding <type>   — Switch footer branding (opencode | pi | custom <text>)",
@@ -237,7 +218,6 @@ export function registerSidebarCommands(
 					`  • Status: ${cfg.enabled ? "Enabled" : "Disabled"}`,
 					`  • Width: ${cfg.width} cols (min terminal: ${cfg.minTerminalWidth} cols)`,
 					`  • Preset: ${cfg.preset} | Branding: ${cfg.branding} | Border: ${cfg.borderStyle}`,
-					`  • Bottom Footer: ${cfg.hideBottomFooter ? "Hidden (moved to sidebar)" : "Visible"}`,
 					"",
 					"Tip: Append `--global` to persist setting across all future sessions.",
 				].join("\n");
@@ -273,31 +253,9 @@ export function registerSidebarCommands(
 						`Sidebar: ${current.enabled ? "ENABLED" : "DISABLED"}`,
 						`Width: ${current.width} cols | Min Term Width: ${current.minTerminalWidth}`,
 						`Preset: ${current.preset} | Branding: ${current.branding} | Border: ${current.borderStyle}`,
-						`Bottom Footer: ${current.hideBottomFooter ? "Hidden" : "Visible"}`,
 					].join(" | ");
 					ctx.ui.notify(msg, "info");
 					return;
-				}
-
-				case "footer": {
-					const f = value.toLowerCase();
-					if (f === "hide" || f === "off") {
-						nextConfig.hideBottomFooter = true;
-						ctx.ui.notify(
-							"Bottom footer hidden (status line moved to sidebar)",
-							"info",
-						);
-					} else if (f === "show" || f === "on") {
-						nextConfig.hideBottomFooter = false;
-						ctx.ui.notify("Bottom footer restored", "info");
-					} else {
-						ctx.ui.notify(
-							"Invalid option. Use: /sidebar footer hide or /sidebar footer show",
-							"warning",
-						);
-						return;
-					}
-					break;
 				}
 
 				case "refresh": {

@@ -27,7 +27,6 @@ import {
 	getSessionStats,
 	isAutoCompactEnabled,
 } from "./stats.js";
-import type { FooterDataProviderLike } from "./types.js";
 
 const BORDER_CHARS = {
 	line: "│ ",
@@ -37,20 +36,12 @@ const BORDER_CHARS = {
 	none: "",
 };
 
-function cleanStatusText(text: string): string {
-	return text
-		.replace(/[\r\n\t]+/g, " ")
-		.replace(/ +/g, " ")
-		.trim();
-}
-
 export class SidebarComponent implements Component {
 	private tui: TUI;
 	private pi: ExtensionAPI;
 	private ctx: ExtensionContext;
 	private theme: Theme;
 	private sessionStartIso: string;
-	private footerData: FooterDataProviderLike | null = null;
 
 	constructor(tui: TUI, pi: ExtensionAPI, ctx: ExtensionContext, theme: Theme) {
 		this.tui = tui;
@@ -66,10 +57,6 @@ export class SidebarComponent implements Component {
 
 	updateTheme(theme: Theme): void {
 		this.theme = theme;
-	}
-
-	updateFooterData(footerData: FooterDataProviderLike | null): void {
-		this.footerData = footerData;
 	}
 
 	invalidate(): void {
@@ -170,7 +157,7 @@ export class SidebarComponent implements Component {
 					: success;
 
 		// =========================================================================
-		// PRESET: DETAILED (Full Telemetry & Status Line in Sidebar)
+		// PRESET: DETAILED (Clean, structured dashboard)
 		// =========================================================================
 		if (config.preset === "detailed") {
 			// 1. Session Section
@@ -210,11 +197,13 @@ export class SidebarComponent implements Component {
 				const barW = Math.max(6, Math.min(10, innerWidth - 6));
 				const autoStr = isAutoCompactEnabled(this.ctx.cwd) ? " (auto)" : "";
 				const bar = ctxColor(contextBar(percentValue, barW));
-				const pctStr = percentValue === null ? "?%" : `${percentValue.toFixed(1)}%`;
+				const pctStr =
+					percentValue === null ? "?%" : `${percentValue.toFixed(1)}%`;
 				topLines.push(`${bar} ${ctxColor(pctStr)}${dim(autoStr)}`);
 
 				const tokensUsed =
-					stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens;
+					stats.contextTokens ??
+					stats.totalInputTokens + stats.totalOutputTokens;
 				const windowStr = `${formatTokensCompact(tokensUsed)} / ${formatTokensCompact(stats.contextWindow)} tokens`;
 				topLines.push(muted(windowStr));
 
@@ -243,7 +232,8 @@ export class SidebarComponent implements Component {
 			if (config.showQuota) {
 				const isKimi = model?.provider === "kimi-coding";
 				const isZai =
-					model?.provider === "zai-coding-cn" || model?.provider === "zai-coding";
+					model?.provider === "zai-coding-cn" ||
+					model?.provider === "zai-coding";
 
 				const kimi = getKimiQuotas();
 				const zai = getZaiQuotas();
@@ -294,37 +284,9 @@ export class SidebarComponent implements Component {
 				}
 			}
 
-			// 6. Extension Statuses (Moved from bottom status line!)
-			if (config.showExtensions && this.footerData) {
-				const extMap = this.footerData.getExtensionStatuses();
-				if (extMap && extMap.size > 0) {
-					topLines.push(header("EXTENSIONS"));
-					for (const [key, rawVal] of Array.from(extMap.entries()).sort(([a], [b]) =>
-						a.localeCompare(b),
-					)) {
-						if (!rawVal) continue;
-						const cleaned = cleanStatusText(rawVal);
-						if (!cleaned) continue;
-
-						let prefix = "• ";
-						if (key.includes("translate")) prefix = "🌐 ";
-						else if (key.includes("spai")) prefix = "📋 ";
-						else if (key.includes("radar") || key.includes("adr")) prefix = "🛡️ ";
-						else if (key.includes("subagent")) prefix = "🤖 ";
-						else if (key.includes("lsp")) prefix = "⚡ ";
-
-						const fullItem = `${prefix}${cleaned}`;
-						for (const wrapped of this.wrapText(fullItem, innerWidth)) {
-							topLines.push(muted(wrapped));
-						}
-					}
-					topLines.push("");
-				}
-			}
-
-			// 7. LSP & Tools Section
+			// 6. LSP & Tools Section
 			if (config.showLsp) {
-				topLines.push(header("LSP & TOOLS"));
+				topLines.push(header("LSP"));
 				let activeTools: string[] = [];
 				try {
 					activeTools = this.pi.getActiveTools();
@@ -341,10 +303,7 @@ export class SidebarComponent implements Component {
 				});
 
 				if (lspTools.length > 0) {
-					topLines.push(success(`⚡ ${lspTools.length} active LSPs`));
-					for (const tool of lspTools.slice(0, 3)) {
-						topLines.push(dim(`  • ${tool}`));
-					}
+					topLines.push(success(`Active (${lspTools.length} tools)`));
 				} else {
 					topLines.push(muted("LSPs disabled"));
 				}
@@ -369,7 +328,8 @@ export class SidebarComponent implements Component {
 			}
 
 			if (config.showContext) {
-				const pctStr = percentValue === null ? "?%" : `${percentValue.toFixed(0)}%`;
+				const pctStr =
+					percentValue === null ? "?%" : `${percentValue.toFixed(0)}%`;
 				const costStr = `$${(stats.totalCost || 0).toFixed(2)}`;
 				topLines.push(
 					`${ctxColor(pctStr)} ${dim("│")} ${warning(costStr)} ${dim("│")} ${muted(formatTokensCompact(stats.totalInputTokens + stats.totalOutputTokens))}`,
@@ -400,7 +360,8 @@ export class SidebarComponent implements Component {
 				topLines.push(accent("Context"));
 
 				const tokensStr = formatTokens(
-					stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens,
+					stats.contextTokens ??
+						stats.totalInputTokens + stats.totalOutputTokens,
 				);
 				topLines.push(muted(tokensStr));
 
