@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-09-02T09:57:35.580Z",
+  "records": [
+    {
+      "id": "ADR-001",
+      "title": "Eldritch-Footer Telemetry Integration in Pi-Sidebar Overlay",
+      "date": "2026-09-02 11:57:35",
+      "file": "2026-09-02-ADR-001-eldritch-footer-telemetry-integration-in-pi-sideba.md",
+      "constraint": "Eldritch-Footer Telemetry Integration in Pi-Sidebar Overlay: 1. Implemented 'detailed' preset in pi-sidebar with rich multi-section layout matching eldritch-footer telemetry. 2. Added live quota polling for Kimi Coding (weekly and 5h window) and Z.ai / GLM Coding Plan (5h window, weekly, search quota). 3. Added support for thinking level indicators with emojis (🧠, ⚡, etc.), token breakdown (↑/↓), cache read/write with hit percentage (📦/🎯), and context usage bars. 4. Documented the configuration flow: switch pi-sidebar to '/sidebar preset detailed --global' and set eldritch-footer to '/footer minimal --global' (or '/footer off --global').",
+      "status": "active"
+    }
+  ]
+}

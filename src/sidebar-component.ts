@@ -2,6 +2,7 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 	Theme,
+	ThemeColor,
 } from "@earendil-works/pi-coding-agent";
 import {
 	type Component,
@@ -12,10 +13,21 @@ import {
 import { getActiveConfig } from "./config.js";
 import { formatProjectPath, getGitInfo } from "./git.js";
 import {
+	contextBar,
+	formatEpochResetTime,
+	formatResetTime,
+	getKimiQuotas,
+	getZaiQuotas,
+} from "./quota.js";
+import {
+	THINKING_EMOJI,
+	THINKING_TOKEN,
 	formatCost,
 	formatPercent,
 	formatTokens,
+	formatTokensCompact,
 	getSessionStats,
+	isAutoCompactEnabled,
 } from "./stats.js";
 
 const BORDER_CHARS = {
@@ -74,7 +86,6 @@ export class SidebarComponent implements Component {
 			let sliceLen = maxWidth;
 			let foundBreak = false;
 
-			// Look backwards from maxWidth for good break points: \, /, :, -, _, space
 			for (
 				let i = Math.min(current.length, maxWidth);
 				i > Math.max(1, maxWidth - 10);
@@ -86,7 +97,8 @@ export class SidebarComponent implements Component {
 					char === "/" ||
 					char === ":" ||
 					char === " " ||
-					char === "-"
+					char === "-" ||
+					char === "•"
 				) {
 					sliceLen = i;
 					foundBreak = true;
@@ -117,72 +129,276 @@ export class SidebarComponent implements Component {
 		const th = this.theme;
 		const accent = (s: string) => th.fg("accent", s);
 		const muted = (s: string) => th.fg("muted", s);
+		const dim = (s: string) => th.fg("dim", s);
 		const success = (s: string) => th.fg("success", s);
+		const warning = (s: string) => th.fg("warning", s);
+		const error = (s: string) => th.fg("error", s);
 
 		const topLines: string[] = [];
 		const bottomLines: string[] = [];
 
-		// ================= 1. Top Section: Session =================
-		if (config.showSession) {
-			const sessionName = this.ctx.sessionManager.getSessionName();
-			const sessionTitle = sessionName
-				? `Session - ${sessionName}`
-				: `New session - ${this.sessionStartIso}`;
-			const wrappedSession = this.wrapText(sessionTitle, innerWidth);
-			for (const line of wrappedSession) {
-				topLines.push(muted(line));
-			}
-			topLines.push("");
-		}
+		const stats = getSessionStats(this.ctx);
+		const model = this.ctx.model;
+		const usage = this.ctx.getContextUsage();
+		const percentValue = usage?.percent ?? stats.contextPercent;
+		const isNearCompaction = percentValue !== null && percentValue >= 80;
+		const isImminentCompaction = percentValue !== null && percentValue >= 90;
 
-		// ================= 2. Context Section =================
-		if (config.showContext) {
-			const stats = getSessionStats(this.ctx);
-			topLines.push(accent("Context"));
+		const ctxColor: (s: string) => string = isImminentCompaction
+			? error
+			: isNearCompaction
+				? warning
+				: percentValue !== null && percentValue > 60
+					? accent
+					: success;
 
-			const tokensStr = formatTokens(
-				stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens,
-			);
-			topLines.push(muted(tokensStr));
-
-			const percentStr = formatPercent(stats.contextPercent);
-			topLines.push(muted(percentStr));
-
-			const costStr = formatCost(stats.totalCost);
-			topLines.push(muted(costStr));
-
-			topLines.push("");
-		}
-
-		// ================= 3. LSP Section =================
-		if (config.showLsp) {
-			topLines.push(accent("LSP"));
-
-			let activeTools: string[] = [];
-			try {
-				activeTools = this.pi.getActiveTools();
-			} catch {
-				// Non-fatal fallback
+		// =========================================================================
+		// PRESET: DETAILED (Full Eldritch-Style Dashboard in Sidebar)
+		// =========================================================================
+		if (config.preset === "detailed") {
+			// 1. Session Section
+			if (config.showSession) {
+				const sessionName = this.ctx.sessionManager.getSessionName();
+				const sessionTitle = sessionName
+					? `🏷️ ${sessionName}`
+					: `New session • ${this.sessionStartIso.slice(11, 16)}`;
+				for (const line of this.wrapText(sessionTitle, innerWidth)) {
+					topLines.push(muted(line));
+				}
+				topLines.push("");
 			}
 
-			const lspTools = activeTools.filter((t: string) => {
-				const lower = t.toLowerCase();
-				return (
-					lower.includes("lsp") ||
-					lower.includes("lens") ||
-					lower.includes("ast_grep")
+			// 2. Model & Thinking Section
+			if (config.showModel && model) {
+				topLines.push(accent("Model"));
+				const modelId = model.id || "no-model";
+				const providerTag = model.provider ? `(${model.provider})` : "";
+				topLines.push(muted(`${modelId} ${dim(providerTag)}`.trim()));
+
+				if (model.reasoning) {
+					const level = this.pi.getThinkingLevel() || "off";
+					const emoji = THINKING_EMOJI[level] ?? "🧠";
+					const token = THINKING_TOKEN[level] ?? "thinkingOff";
+					topLines.push(th.fg(token, `${emoji} thinking: ${level}`));
+				}
+				topLines.push("");
+			}
+
+			// 3. Context & Auto-Compaction Section
+			if (config.showContext) {
+				topLines.push(accent("Context"));
+
+				const barW = Math.max(6, Math.min(10, innerWidth - 6));
+				const autoStr = isAutoCompactEnabled(this.ctx.cwd) ? " (auto)" : "";
+				const bar = ctxColor(contextBar(percentValue, barW));
+				const pctStr =
+					percentValue === null ? "?%" : `${percentValue.toFixed(1)}%`;
+				topLines.push(`${bar} ${ctxColor(pctStr)}${dim(autoStr)}`);
+
+				const tokensUsed =
+					stats.contextTokens ??
+					stats.totalInputTokens + stats.totalOutputTokens;
+				const windowStr = `${formatTokensCompact(tokensUsed)} / ${formatTokensCompact(stats.contextWindow)}`;
+				topLines.push(muted(windowStr));
+
+				const costStr = `💰 $${(stats.totalCost || 0).toFixed(stats.totalCost < 0.01 ? 4 : 3)}`;
+				topLines.push(warning(costStr));
+				topLines.push("");
+			}
+
+			// 4. Token & Cache Breakdown Section
+			if (config.showCache) {
+				const inOutStr = `↑ ${formatTokensCompact(stats.totalInputTokens)}  ↓ ${formatTokensCompact(stats.totalOutputTokens)}`;
+				topLines.push(dim(inOutStr));
+
+				if (stats.totalCacheRead > 0 || stats.totalCacheWrite > 0) {
+					let cacheStr = `📦 ${formatTokensCompact(stats.totalCacheRead)}`;
+					if (stats.cacheHitRate !== undefined) {
+						cacheStr += ` 🎯${stats.cacheHitRate.toFixed(0)}%`;
+					}
+					topLines.push(muted(cacheStr));
+				}
+				topLines.push("");
+			}
+
+			// 5. Vendor Quota Section (Kimi & Z.ai)
+			if (config.showQuota) {
+				const isKimi = model?.provider === "kimi-coding";
+				const isZai =
+					model?.provider === "zai-coding-cn" ||
+					model?.provider === "zai-coding";
+
+				const kimi = getKimiQuotas();
+				const zai = getZaiQuotas();
+
+				if (isKimi && kimi?.usage) {
+					topLines.push(accent("Kimi Quota"));
+					const used = Number(kimi.usage.used ?? 0);
+					const limit = Number(kimi.usage.limit ?? 0);
+					const pct = limit > 0 ? (used / limit) * 100 : 0;
+					const qColor = pct > 90 ? error : pct > 70 ? warning : success;
+					const bar = qColor(contextBar(pct, 6));
+
+					topLines.push(`Týden: ${bar} ${qColor(`${pct.toFixed(0)}%`)}`);
+					topLines.push(dim(`Rst: ${formatResetTime(kimi.usage.resetTime)}`));
+
+					const detail5h = kimi.limits?.[0]?.detail;
+					if (detail5h) {
+						const u5 = Number(detail5h.used ?? 0);
+						const l5 = Number(detail5h.limit ?? 0);
+						const p5 = l5 > 0 ? (u5 / l5) * 100 : 0;
+						const c5 = p5 > 90 ? error : p5 > 70 ? warning : success;
+						topLines.push(`5h: ${c5(contextBar(p5, 6))} ${c5(`${p5.toFixed(0)}%`)}`);
+					}
+					topLines.push("");
+				} else if (isZai && zai?.limits?.length) {
+					topLines.push(accent("Z.ai Quota"));
+					const zLimits = zai.limits.filter((l) => l.type === "TOKENS_LIMIT");
+					const fiveHour = zLimits.find((l) => l.unit === 3) ?? zLimits[0];
+					const weekly = zLimits.find((l) => l.unit === 6) ?? zLimits[1];
+
+					if (fiveHour) {
+						const p = fiveHour.percentage ?? 0;
+						const c = p > 90 ? error : p > 70 ? warning : success;
+						topLines.push(`5h: ${c(contextBar(p, 6))} ${c(`${p}%`)}`);
+					}
+					if (weekly) {
+						const p = weekly.percentage ?? 0;
+						const c = p > 90 ? error : p > 70 ? warning : success;
+						topLines.push(`Týden: ${c(contextBar(p, 6))} ${c(`${p}%`)}`);
+					}
+					const search = zai.limits.find((l) => l.type === "TIME_LIMIT");
+					if (search && typeof search.usage === "number") {
+						topLines.push(
+							dim(`Hledání: ${search.currentValue ?? 0}/${search.usage}`),
+						);
+					}
+					topLines.push("");
+				}
+			}
+
+			// 6. LSP Section
+			if (config.showLsp) {
+				topLines.push(accent("LSP"));
+				let activeTools: string[] = [];
+				try {
+					activeTools = this.pi.getActiveTools();
+				} catch {
+					// Non-fatal
+				}
+				const lspTools = activeTools.filter((t: string) => {
+					const lower = t.toLowerCase();
+					return (
+						lower.includes("lsp") ||
+						lower.includes("lens") ||
+						lower.includes("ast_grep")
+					);
+				});
+
+				if (lspTools.length > 0) {
+					topLines.push(muted(`Active (${lspTools.length} tools)`));
+				} else {
+					topLines.push(muted("LSPs disabled"));
+				}
+				topLines.push("");
+			}
+		}
+
+		// =========================================================================
+		// PRESET: COMPACT (Minimal vertical height)
+		// =========================================================================
+		else if (config.preset === "compact") {
+			if (config.showSession) {
+				const sessionName = this.ctx.sessionManager.getSessionName();
+				const title = sessionName ? `🏷️ ${sessionName}` : "Session";
+				topLines.push(muted(title));
+			}
+
+			if (config.showModel && model) {
+				const level = this.pi.getThinkingLevel() || "off";
+				const emoji = THINKING_EMOJI[level] ?? "🧠";
+				topLines.push(accent(`${model.id} • ${emoji}`));
+			}
+
+			if (config.showContext) {
+				const pctStr =
+					percentValue === null ? "?%" : `${percentValue.toFixed(0)}%`;
+				const costStr = `$${(stats.totalCost || 0).toFixed(2)}`;
+				topLines.push(
+					`${ctxColor(pctStr)} ${dim("│")} ${warning(costStr)} ${dim("│")} ${muted(formatTokensCompact(stats.totalInputTokens + stats.totalOutputTokens))}`,
 				);
-			});
-
-			if (lspTools.length > 0) {
-				topLines.push(muted(`Active (${lspTools.length} tools)`));
-			} else {
-				topLines.push(muted("LSPs are disabled"));
+				topLines.push("");
 			}
-			topLines.push("");
 		}
 
-		// ================= 4. Bottom Section: Git & Path =================
+		// =========================================================================
+		// PRESET: OPENCODE (Standard OpenCode layout)
+		// =========================================================================
+		else {
+			// 1. Session Section
+			if (config.showSession) {
+				const sessionName = this.ctx.sessionManager.getSessionName();
+				const sessionTitle = sessionName
+					? `Session - ${sessionName}`
+					: `New session - ${this.sessionStartIso}`;
+				const wrappedSession = this.wrapText(sessionTitle, innerWidth);
+				for (const line of wrappedSession) {
+					topLines.push(muted(line));
+				}
+				topLines.push("");
+			}
+
+			// 2. Context Section
+			if (config.showContext) {
+				topLines.push(accent("Context"));
+
+				const tokensStr = formatTokens(
+					stats.contextTokens ??
+						stats.totalInputTokens + stats.totalOutputTokens,
+				);
+				topLines.push(muted(tokensStr));
+
+				const percentStr = formatPercent(stats.contextPercent);
+				topLines.push(muted(percentStr));
+
+				const costStr = formatCost(stats.totalCost);
+				topLines.push(muted(costStr));
+
+				topLines.push("");
+			}
+
+			// 3. LSP Section
+			if (config.showLsp) {
+				topLines.push(accent("LSP"));
+
+				let activeTools: string[] = [];
+				try {
+					activeTools = this.pi.getActiveTools();
+				} catch {
+					// Non-fatal fallback
+				}
+
+				const lspTools = activeTools.filter((t: string) => {
+					const lower = t.toLowerCase();
+					return (
+						lower.includes("lsp") ||
+						lower.includes("lens") ||
+						lower.includes("ast_grep")
+					);
+				});
+
+				if (lspTools.length > 0) {
+					topLines.push(muted(`Active (${lspTools.length} tools)`));
+				} else {
+					topLines.push(muted("LSPs are disabled"));
+				}
+				topLines.push("");
+			}
+		}
+
+		// =========================================================================
+		// Bottom Section: Git & Path
+		// =========================================================================
 		if (config.showGit) {
 			const cwd = this.ctx.cwd;
 			const gitInfo = getGitInfo(cwd);
@@ -192,10 +408,22 @@ export class SidebarComponent implements Component {
 			for (const line of wrappedPath) {
 				bottomLines.push(th.fg("customMessageLabel", line));
 			}
+
+			if (config.preset === "detailed" && gitInfo.branch) {
+				const dirtyIcon = gitInfo.dirty ? "● dirty" : "○ clean";
+				const dirtyColor = gitInfo.dirty ? warning : success;
+				let gitMeta = dirtyColor(dirtyIcon);
+				if (gitInfo.ahead > 0) gitMeta += dim(` ▸${gitInfo.ahead}`);
+				if (gitInfo.behind > 0) gitMeta += dim(` ◂${gitInfo.behind}`);
+				bottomLines.push(gitMeta);
+			}
+
 			bottomLines.push("");
 		}
 
-		// ================= 5. Branding Footer =================
+		// =========================================================================
+		// Branding Footer
+		// =========================================================================
 		let brandingText = "• OpenCode 1.18.26";
 		if (config.branding === "pi") {
 			brandingText = "• Pi Agent v0.84.4";
@@ -204,7 +432,9 @@ export class SidebarComponent implements Component {
 		}
 		bottomLines.push(success(brandingText));
 
-		// ================= Assemble Vertical Layout =================
+		// =========================================================================
+		// Assemble Vertical Layout
+		// =========================================================================
 		const totalContentRows = topLines.length + bottomLines.length;
 		const targetHeight =
 			termHeight > 0 ? termHeight : Math.max(totalContentRows, 24);
@@ -216,13 +446,11 @@ export class SidebarComponent implements Component {
 			...bottomLines,
 		];
 
-		// In fullscreen / alt-screen mode, ensure overlay lines do not exceed terminal rows
 		const constrainedLines =
 			termHeight > 0 && allContentLines.length > termHeight
 				? allContentLines.slice(0, termHeight)
 				: allContentLines;
 
-		// Format every line with border and pad to exact width
 		return constrainedLines.map((content) => {
 			const border =
 				config.borderStyle === "none" ? "" : th.fg("border", borderPrefix);
@@ -232,7 +460,6 @@ export class SidebarComponent implements Component {
 			const paddedContent = lineWithoutBorder + " ".repeat(padLen);
 			const fullLine = border + paddedContent;
 
-			// Ensure line does not exceed requested width
 			return visibleWidth(fullLine) > width
 				? sliceByColumn(fullLine, 0, width, true)
 				: fullLine;

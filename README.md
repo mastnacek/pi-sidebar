@@ -2,21 +2,32 @@
 
 OpenCode-style right sidebar overlay extension for the [Pi coding agent](https://github.com/earendil-works/pi-mono).
 
-Provides an elegant, non-intrusive vertical sidebar docked to the right edge of the terminal, displaying live session metadata, context tokens, cumulative cost, active LSP tools, and git workspace details.
+Provides an elegant, non-intrusive vertical sidebar docked to the right edge of the terminal, displaying live session metadata, context tokens, cumulative cost, active LSP tools, git workspace details, and provider quota meters.
 
 ---
 
 ## Features
 
-- **OpenCode Visual Fidelity**: Exact layout and typography matching the OpenCode sidebar.
-- **Top Session Banner**: Shows timestamp (`New session - YYYY-MM-DDTHH:mm:ss.sssZ`) or active session title.
+- **OpenCode Visual Fidelity & Rich Presets**:
+  - `opencode`: Exact layout matching classic OpenCode sidebar.
+  - `compact`: Space-saving vertical layout.
+  - `detailed`: Full multi-section dashboard replicating the rich telemetry from `eldritch-footer` (Model & thinking levels, context progress bar, cache hit rates, token breakdown, and live Kimi / Z.ai quota meters).
+- **Top Session Banner**: Shows timestamp (`New session • HH:mm`) or active session title.
+- **Model & Reasoning Telemetry**: Displays model ID, provider, and active thinking level emoji (`💤`, `🔹`, `🧊`, `⚡`, `🧠`, `🔥`, `🌋`).
 - **Real-Time Context & Cost Meter**:
-  - `0 tokens` / `15.2k tokens`
-  - `0% used` / `12% used` (auto-calculated from active model context window)
-  - `$0.00 spent` / `$0.04 spent`
-- **LSP / Tool Readiness**: Displays active LSP tools (`lotusscript_lsp`, `pi-lens`, `ast-grep`) or `LSPs are disabled`.
+  - Visual progress bar `📊 ██░░░░ 23.0% (auto)`
+  - Window capacity `46k / 200k tokens`
+  - Cost `$0.012 spent`
+- **Token & Cache Breakdown**:
+  - `↑ 12k  ↓ 3k` input / output tokens
+  - `📦 8k  🎯 95%` cache read & hit rate
+- **Live Provider Quotas**:
+  - **Kimi Coding**: Weekly quota, 5h window meter, reset timestamp.
+  - **Z.ai / GLM**: 5h window, weekly quota, monthly web search count.
+- **LSP / Tool Readiness**: Displays active LSP tools (`lotusscript_lsp`, `pi-lens`, `ast-grep`) or `LSPs disabled`.
 - **Bottom Workspace & Git Dock**:
-  - Formatted project path with active git branch (`/D:\path\to\project:master`)
+  - Formatted project path with active git branch (`/D:\path\to\project:main`)
+  - Status indicators (`● dirty` / `○ clean`, `▸ahead`, `◂behind`)
   - Configurable branding footer (`• OpenCode 1.18.26` or `• Pi Agent v0.84.4`)
 - **Non-Capturing Overlay**: Rendered via Pi's native overlay system (`nonCapturing: true`) with zero impact on editor typing, keybindings, or cursor responsiveness.
 - **Editor Boundary Wrapping**: Dynamically bounds the text input editor width so prompts stop before the sidebar boundary.
@@ -24,29 +35,27 @@ Provides an elegant, non-intrusive vertical sidebar docked to the right edge of 
 
 ---
 
-## Installation
+## Coexisting with `eldritch-footer`
 
-### Local Installation
+When using `pi-sidebar` with the `detailed` preset, all telemetry previously in `eldritch-footer` moves to the right sidebar. You can configure `eldritch-footer` accordingly:
 
-Add to `~/.pi/agent/settings.json` under `packages`:
+1. **Clean 1-Line Footer**: Keep a minimal single-line statusbar at the bottom while viewing full metrics in the sidebar:
 
-```json
-{
-  "packages": [
-    "D:/01_programovani/pi/plugins/pi-sidebar"
-  ]
-}
-```
+   ```text
+   /footer minimal --global
+   ```
 
-Or via Git package:
+2. **Disable Footer Entirely**: Move all stats exclusively to the sidebar:
 
-```json
-{
-  "packages": [
-    "git:github.com/mastnacek/pi-sidebar"
-  ]
-}
-```
+   ```text
+   /footer off --global
+   ```
+
+3. **Switch Sidebar to Detailed Mode**:
+
+   ```text
+   /sidebar preset detailed --global
+   ```
 
 ---
 
@@ -57,15 +66,16 @@ Control the sidebar at any time using the `/sidebar` slash command:
 ```text
 /sidebar on|off|toggle     — Toggle sidebar visibility
 /sidebar status            — Show active configuration & metrics
-/sidebar width <16-60>     — Adjust column width (default: 28)
 /sidebar preset <name>     — Switch layout preset (opencode | compact | detailed)
+/sidebar refresh           — Force refresh Kimi and Z.ai quota meters
+/sidebar width <16-60>     — Adjust column width (default: 28)
 /sidebar branding <type>   — Switch branding footer (opencode | pi | custom <text>)
 /sidebar border <style>    — Set border style (line | double | dotted | space | none)
 /sidebar reset             — Reset settings to default
 /sidebar help              — Display detailed help banner
 ```
 
-> **Tip**: Append `--global` to any command (e.g. `/sidebar width 32 --global`) to persist settings across all future sessions in `~/.pi/agent/pi-sidebar.json`.
+> **Tip**: Append `--global` to any command (e.g. `/sidebar preset detailed --global`) to persist settings across all future sessions in `~/.pi/agent/pi-sidebar.json`.
 
 ---
 
@@ -78,13 +88,16 @@ Stored locally per-session or globally under `~/.pi/agent/pi-sidebar.json`:
   "enabled": true,
   "width": 28,
   "minTerminalWidth": 80,
-  "preset": "opencode",
-  "branding": "opencode",
+  "preset": "detailed",
+  "branding": "pi",
   "borderStyle": "line",
-  "showLsp": true,
+  "showSession": true,
+  "showModel": true,
   "showContext": true,
-  "showGit": true,
-  "showSession": true
+  "showCache": true,
+  "showQuota": true,
+  "showLsp": true,
+  "showGit": true
 }
 ```
 

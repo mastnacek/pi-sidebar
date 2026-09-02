@@ -25,10 +25,13 @@ export const DEFAULT_CONFIG: SidebarConfig = {
 	preset: "opencode",
 	branding: "pi",
 	borderStyle: "line",
-	showLsp: true,
-	showContext: true,
-	showGit: true,
 	showSession: true,
+	showModel: true,
+	showContext: true,
+	showCache: true,
+	showQuota: true,
+	showLsp: true,
+	showGit: true,
 };
 
 let activeConfig: SidebarConfig = { ...DEFAULT_CONFIG };
@@ -191,25 +194,40 @@ export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 			globalCfg.borderStyle,
 			DEFAULT_CONFIG.borderStyle,
 		),
-		showLsp: resolveBoolean(
-			sessionCfg?.showLsp,
-			globalCfg.showLsp,
-			DEFAULT_CONFIG.showLsp,
+		showSession: resolveBoolean(
+			sessionCfg?.showSession,
+			globalCfg.showSession,
+			DEFAULT_CONFIG.showSession,
+		),
+		showModel: resolveBoolean(
+			sessionCfg?.showModel,
+			globalCfg.showModel,
+			DEFAULT_CONFIG.showModel,
 		),
 		showContext: resolveBoolean(
 			sessionCfg?.showContext,
 			globalCfg.showContext,
 			DEFAULT_CONFIG.showContext,
 		),
+		showCache: resolveBoolean(
+			sessionCfg?.showCache,
+			globalCfg.showCache,
+			DEFAULT_CONFIG.showCache,
+		),
+		showQuota: resolveBoolean(
+			sessionCfg?.showQuota,
+			globalCfg.showQuota,
+			DEFAULT_CONFIG.showQuota,
+		),
+		showLsp: resolveBoolean(
+			sessionCfg?.showLsp,
+			globalCfg.showLsp,
+			DEFAULT_CONFIG.showLsp,
+		),
 		showGit: resolveBoolean(
 			sessionCfg?.showGit,
 			globalCfg.showGit,
 			DEFAULT_CONFIG.showGit,
-		),
-		showSession: resolveBoolean(
-			sessionCfg?.showSession,
-			globalCfg.showSession,
-			DEFAULT_CONFIG.showSession,
 		),
 	};
 

@@ -15,10 +15,13 @@ export interface SidebarConfig {
 	branding: SidebarBranding;
 	customBrandingText?: string;
 	borderStyle: SidebarBorderStyle;
-	showLsp: boolean;
-	showContext: boolean;
-	showGit: boolean;
 	showSession: boolean;
+	showModel: boolean;
+	showContext: boolean;
+	showCache: boolean;
+	showQuota: boolean;
+	showLsp: boolean;
+	showGit: boolean;
 }
 
 export interface SessionStats {
@@ -30,6 +33,7 @@ export interface SessionStats {
 	contextTokens: number | null;
 	contextWindow: number;
 	contextPercent: number | null;
+	cacheHitRate?: number;
 }
 
 export interface GitInfo {
@@ -37,4 +41,35 @@ export interface GitInfo {
 	dirty: boolean;
 	ahead: number;
 	behind: number;
+}
+
+export interface KimiUsageEntry {
+	limit?: string;
+	used?: string;
+	remaining?: string;
+	resetTime?: string;
+}
+
+export interface KimiUsages {
+	usage?: KimiUsageEntry;
+	limits?: Array<{
+		window?: { duration?: number; timeUnit?: string };
+		detail?: KimiUsageEntry;
+	}>;
+}
+
+export interface ZaiLimit {
+	type: string;
+	unit?: number;
+	number?: number;
+	percentage?: number;
+	usage?: number;
+	currentValue?: number;
+	remaining?: number;
+	nextResetTime?: number;
+}
+
+export interface ZaiQuota {
+	limits?: ZaiLimit[];
+	level?: string;
 }

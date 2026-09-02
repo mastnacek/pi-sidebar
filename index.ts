@@ -12,6 +12,7 @@ import {
 	setActiveConfig,
 } from "./src/config.js";
 import { SidebarAwareEditor } from "./src/editor-wrapper.js";
+import { refreshKimiQuota, refreshZaiQuota } from "./src/quota.js";
 import { SidebarComponent } from "./src/sidebar-component.js";
 import type { SidebarConfig } from "./src/types.js";
 
@@ -28,6 +29,28 @@ export default function (pi: ExtensionAPI): void {
 	let currentTui: TUI | null = null;
 	let currentContext: ExtensionContext | null = null;
 	let currentTheme: Theme | null = null;
+
+	const refreshUI = () => {
+		if (currentTui && currentContext && currentTheme) {
+			if (sidebarComponent) {
+				sidebarComponent.updateContext(currentContext);
+				sidebarComponent.updateTheme(currentTheme);
+			}
+			currentTui.requestRender();
+		}
+	};
+
+	function pollActiveQuotas(force = false): void {
+		const model = currentContext?.model;
+		if (model?.provider === "kimi-coding") {
+			void refreshKimiQuota(force, refreshUI);
+		} else if (
+			model?.provider === "zai-coding-cn" ||
+			model?.provider === "zai-coding"
+		) {
+			void refreshZaiQuota(force, refreshUI);
+		}
+	}
 
 	function applySidebar(
 		tui: TUI,
@@ -75,6 +98,7 @@ export default function (pi: ExtensionAPI): void {
 		// Wrap the input editor so it stops before the sidebar
 		ctx.ui.setEditorComponent((t, th, kb) => new SidebarAwareEditor(t, th, kb));
 
+		pollActiveQuotas();
 		tui.requestRender();
 	}
 
@@ -86,10 +110,7 @@ export default function (pi: ExtensionAPI): void {
 		if (currentTui && currentTheme) {
 			applySidebar(currentTui, ctx, currentTheme, next);
 		}
-		ctx.ui.notify(
-			`Sidebar ${next.enabled ? "enabled" : "disabled"}`,
-			"info",
-		);
+		ctx.ui.notify(`Sidebar ${next.enabled ? "enabled" : "disabled"}`, "info");
 	}
 
 	// 1. Session start lifecycle hook
@@ -104,16 +125,6 @@ export default function (pi: ExtensionAPI): void {
 		});
 	});
 
-	const refreshUI = () => {
-		if (currentTui && currentContext && currentTheme) {
-			if (sidebarComponent) {
-				sidebarComponent.updateContext(currentContext);
-				sidebarComponent.updateTheme(currentTheme);
-			}
-			currentTui.requestRender();
-		}
-	};
-
 	// 2. Re-render triggers across session lifecycle
 	pi.on("turn_start", (_event, ctx) => {
 		currentContext = ctx;
@@ -122,6 +133,7 @@ export default function (pi: ExtensionAPI): void {
 
 	pi.on("turn_end", (_event, ctx) => {
 		currentContext = ctx;
+		pollActiveQuotas();
 		refreshUI();
 	});
 
@@ -130,7 +142,11 @@ export default function (pi: ExtensionAPI): void {
 	pi.on("message_end", refreshUI);
 	pi.on("tool_execution_start", refreshUI);
 	pi.on("tool_execution_end", refreshUI);
-	pi.on("model_select", refreshUI);
+	pi.on("model_select", (_event, ctx) => {
+		currentContext = ctx;
+		pollActiveQuotas(true);
+		refreshUI();
+	});
 	pi.on("thinking_level_select", refreshUI);
 	pi.on("session_compact", refreshUI);
 	pi.on("session_info_changed", refreshUI);

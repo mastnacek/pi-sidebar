@@ -11,6 +11,7 @@ import {
 	saveGlobalConfig,
 	setActiveConfig,
 } from "./config.js";
+import { refreshKimiQuota, refreshZaiQuota } from "./quota.js";
 import type {
 	SidebarBorderStyle,
 	SidebarBranding,
@@ -25,6 +26,7 @@ const COMMAND_DOCS: Record<string, string> = {
 	status: "display current sidebar configuration and metrics",
 	width: "set sidebar column width (16-60)",
 	preset: "switch content preset (opencode | compact | detailed)",
+	refresh: "refresh provider quota meters (Kimi & Z.ai)",
 	branding: "switch branding text (opencode | pi | custom)",
 	border: "set border style (line | double | dotted | space | none)",
 	reset: "reset sidebar settings to defaults",
@@ -48,7 +50,11 @@ export function registerSidebarCommands(
 			if (tokens.length > 1 || (trailingSpace && tokens.length === 1)) {
 				const cmd = (tokens[0] ?? "").toLowerCase();
 
-				if (["on", "off", "toggle", "status", "reset", "help"].includes(cmd)) {
+				if (
+					["on", "off", "toggle", "status", "refresh", "reset", "help"].includes(
+						cmd,
+					)
+				) {
 					return null;
 				}
 
@@ -86,17 +92,17 @@ export function registerSidebarCommands(
 						{
 							value: "preset opencode",
 							label: "preset opencode",
-							description: "Exact OpenCode layout",
+							description: "Classic OpenCode sidebar layout",
 						},
 						{
 							value: "preset compact",
 							label: "preset compact",
-							description: "Minimal compact layout",
+							description: "Minimal compact vertical layout",
 						},
 						{
 							value: "preset detailed",
 							label: "preset detailed",
-							description: "Extended metrics layout",
+							description: "Full Eldritch-style dashboard layout",
 						},
 					];
 					const filtered = presets.filter((i) =>
@@ -194,14 +200,15 @@ export function registerSidebarCommands(
 			) {
 				const cfg = getActiveConfig();
 				const helpText = [
-					"# /sidebar — OpenCode Sidebar Control Reference",
-					"Docked right-hand sidebar replicating the OpenCode layout.",
+					"# /sidebar — OpenCode & Detailed Sidebar Reference",
+					"Right-hand sidebar overlay with OpenCode, Compact, and Detailed presets.",
 					"",
 					"### Commands:",
 					"  /sidebar on|off|toggle     — Toggle sidebar visibility",
 					"  /sidebar status            — Show active configuration & metrics",
-					"  /sidebar width <16-60>     — Adjust column width (default: 28)",
 					"  /sidebar preset <name>     — Switch preset (opencode | compact | detailed)",
+					"  /sidebar refresh           — Force refresh Kimi and Z.ai quotas",
+					"  /sidebar width <16-60>     — Adjust column width (default: 28)",
 					"  /sidebar branding <type>   — Switch footer branding (opencode | pi | custom <text>)",
 					"  /sidebar border <style>    — Set border style (line | double | dotted | space | none)",
 					"  /sidebar reset             — Reset to defaults",
@@ -248,6 +255,13 @@ export function registerSidebarCommands(
 						`Preset: ${current.preset} | Branding: ${current.branding} | Border: ${current.borderStyle}`,
 					].join(" | ");
 					ctx.ui.notify(msg, "info");
+					return;
+				}
+
+				case "refresh": {
+					ctx.ui.notify("Refreshing provider quotas...", "info");
+					void refreshKimiQuota(true, () => onConfigChanged(current, ctx));
+					void refreshZaiQuota(true, () => onConfigChanged(current, ctx));
 					return;
 				}
 

@@ -1,6 +1,29 @@
 import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext, ThemeColor } from "@earendil-works/pi-coding-agent";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { SessionStats } from "./types.js";
+
+export const THINKING_EMOJI: Record<string, string> = {
+	off: "💤",
+	minimal: "🔹",
+	low: "🧊",
+	medium: "⚡",
+	high: "🧠",
+	xhigh: "🔥",
+	max: "🌋",
+};
+
+export const THINKING_TOKEN: Record<string, ThemeColor> = {
+	off: "thinkingOff",
+	minimal: "thinkingMinimal",
+	low: "thinkingLow",
+	medium: "thinkingMedium",
+	high: "thinkingHigh",
+	xhigh: "thinkingXhigh",
+	max: "thinkingMax",
+};
 
 export function getSessionStats(ctx: ExtensionContext): SessionStats {
 	let totalInputTokens = 0;
@@ -8,6 +31,7 @@ export function getSessionStats(ctx: ExtensionContext): SessionStats {
 	let totalCacheRead = 0;
 	let totalCacheWrite = 0;
 	let totalCost = 0;
+	let latestCacheHitRate: number | undefined;
 
 	try {
 		for (const entry of ctx.sessionManager.getEntries()) {
@@ -19,6 +43,12 @@ export function getSessionStats(ctx: ExtensionContext): SessionStats {
 					totalCacheRead += u.cacheRead ?? 0;
 					totalCacheWrite += u.cacheWrite ?? 0;
 					totalCost += u.cost?.total ?? 0;
+
+					const prompt =
+						(u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0);
+					if (prompt > 0) {
+						latestCacheHitRate = ((u.cacheRead ?? 0) / prompt) * 100;
+					}
 				}
 			} else if (
 				entry.type === "message" &&
@@ -66,6 +96,7 @@ export function getSessionStats(ctx: ExtensionContext): SessionStats {
 		contextTokens,
 		contextWindow,
 		contextPercent,
+		cacheHitRate: latestCacheHitRate,
 	};
 }
 
@@ -75,6 +106,15 @@ export function formatTokens(count: number): string {
 	if (count < 10000) return `${(count / 1000).toFixed(1)}k tokens`;
 	if (count < 1000000) return `${Math.round(count / 1000)}k tokens`;
 	return `${(count / 1000000).toFixed(1)}M tokens`;
+}
+
+export function formatTokensCompact(count: number): string {
+	if (count <= 0) return "0";
+	if (count < 1000) return count.toString();
+	if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
+	if (count < 1000000) return `${Math.round(count / 1000)}k`;
+	if (count < 10000000) return `${(count / 1000000).toFixed(1)}M`;
+	return `${Math.round(count / 1000000)}M`;
 }
 
 export function formatCost(cost: number): string {
@@ -90,4 +130,24 @@ export function formatPercent(percent: number | null): string {
 	if (clamped === 0) return "0% used";
 	if (clamped < 1) return `${clamped.toFixed(1)}% used`;
 	return `${Math.round(clamped)}% used`;
+}
+
+export function isAutoCompactEnabled(cwd: string): boolean {
+	const files = [
+		join(homedir(), ".pi", "agent", "settings.json"),
+		join(cwd, ".pi", "settings.json"),
+	];
+	let enabled = true;
+	for (const f of files) {
+		try {
+			if (!existsSync(f)) continue;
+			const s = JSON.parse(readFileSync(f, "utf8"));
+			if (s?.compaction && typeof s.compaction.enabled === "boolean") {
+				enabled = s.compaction.enabled;
+			}
+		} catch {
+			// Non-fatal
+		}
+	}
+	return enabled;
 }
