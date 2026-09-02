@@ -20,23 +20,24 @@ import type {
 } from "./types.js";
 
 const COMMAND_DOCS: Record<string, string> = {
-	on: "expand / enable sidebar overlay",
-	off: "collapse / disable sidebar overlay",
-	toggle: "toggle collapse / expand sidebar (ctrl+shift+b)",
-	collapse: "collapse sidebar overlay",
-	expand: "expand sidebar overlay",
-	wider: "increase sidebar width (+4 cols, ctrl+shift+→)",
-	narrower: "decrease sidebar width (-4 cols, ctrl+shift+←)",
-	scroll: "scroll sidebar vertically (up | down | top | bottom)",
-	extensions: "toggle statusline extension items in sidebar (on | off | toggle)",
-	width: "set sidebar column width (16-60)",
-	resize: "adjust sidebar width (+N or -N)",
-	preset: "switch content preset (opencode | compact | detailed)",
-	refresh: "refresh provider quota meters (Kimi & Z.ai)",
-	branding: "switch branding text (opencode | pi | custom)",
-	border: "set border style (line | double | dotted | space | none)",
-	reset: "reset sidebar settings to defaults",
-	help: "display detailed help reference banner",
+	on: "rozbalit / zapnout postranní panel (sidebar overlay)",
+	off: "sbalit / vypnout postranní panel (sidebar overlay)",
+	toggle: "přepnout sbalení / rozbalení panelu (ctrl+shift+b)",
+	collapse: "sbalit postranní panel («)",
+	expand: "rozbalit postranní panel",
+	wider: "zvětšit šířku panelu (+4 sloupce, ctrl+shift+→)",
+	narrower: "zmenšit šířku panelu (-4 sloupce, ctrl+shift+←)",
+	scroll: "posunout obsah panelu (up | down | top | bottom)",
+	extensions: "přepnout zobrazení rozšíření v panelu (on | off | toggle)",
+	width: "nastavit přesnou šířku panelu v sloupcích (16-60)",
+	resize: "upravit šířku panelu (+N nebo -N)",
+	preset: "přepnout styl zobrazení (opencode | compact | detailed)",
+	refresh: "vynutit aktualizaci kvót poskytovatelů (Kimi & Z.ai)",
+	branding: "přepnout text patičky (opencode | pi | custom)",
+	border: "nastavit styl oddělovacího rámečku (line | double | dotted | space | none)",
+	status: "zobrazit aktuální konfiguraci a stav panelu",
+	reset: "obnovit výchozí nastavení panelu",
+	help: "zobrazit přehled příkazů a nápovědu",
 };
 
 export function registerSidebarCommands(
@@ -46,7 +47,7 @@ export function registerSidebarCommands(
 	onScrollTo?: (offset: number) => void,
 ): void {
 	pi.registerCommand("sidebar", {
-		description: "Resizable & collapsible sidebar overlay controller",
+		description: "Správa a nastavení rozbalovacího postranního panelu (sidebar)",
 		getArgumentCompletions: async (
 			prefix: string,
 		): Promise<AutocompleteItem[] | null> => {
@@ -81,17 +82,17 @@ export function registerSidebarCommands(
 						{
 							value: `${cmd} on`,
 							label: `${cmd} on`,
-							description: "Show all statusline items in sidebar",
+							description: "Zobrazovat stav rozšíření v postranním panelu",
 						},
 						{
 							value: `${cmd} off`,
 							label: `${cmd} off`,
-							description: "Hide statusline items from sidebar",
+							description: "Skrýt rozšíření z postranního panelu",
 						},
 						{
 							value: `${cmd} toggle`,
 							label: `${cmd} toggle`,
-							description: "Toggle statusline items in sidebar",
+							description: "Přepnout zobrazení rozšíření v panelu",
 						},
 					];
 					const filtered = extOptions.filter((i) =>
@@ -105,22 +106,22 @@ export function registerSidebarCommands(
 						{
 							value: "scroll up",
 							label: "scroll up",
-							description: "Scroll up 3 lines (ctrl+shift+↑)",
+							description: "Posunout nahoru o 3 řádky (ctrl+shift+↑)",
 						},
 						{
 							value: "scroll down",
 							label: "scroll down",
-							description: "Scroll down 3 lines (ctrl+shift+↓)",
+							description: "Posunout dolů o 3 řádky (ctrl+shift+↓)",
 						},
 						{
 							value: "scroll top",
 							label: "scroll top",
-							description: "Scroll to top",
+							description: "Posunout na úplný začátek (nahoru)",
 						},
 						{
 							value: "scroll bottom",
 							label: "scroll bottom",
-							description: "Scroll to bottom",
+							description: "Posunout na úplný konec (dolů)",
 						},
 					];
 					const filtered = scrollOptions.filter((i) =>
@@ -134,22 +135,22 @@ export function registerSidebarCommands(
 						{
 							value: `${cmd} 24`,
 							label: `${cmd} 24`,
-							description: "Compact width (24 cols)",
+							description: "Kompaktní šířka (24 sloupců)",
 						},
 						{
 							value: `${cmd} 28`,
 							label: `${cmd} 28`,
-							description: "Default width (28 cols)",
+							description: "Výchozí šířka (28 sloupců)",
 						},
 						{
 							value: `${cmd} 32`,
 							label: `${cmd} 32`,
-							description: "Standard width (32 cols)",
+							description: "Standardní šířka (32 sloupců)",
 						},
 						{
 							value: `${cmd} 36`,
 							label: `${cmd} 36`,
-							description: "Spacious width (36 cols)",
+							description: "Široký panel (36 sloupců)",
 						},
 					];
 					const filtered = widths.filter((i) =>
@@ -163,17 +164,17 @@ export function registerSidebarCommands(
 						{
 							value: "preset opencode",
 							label: "preset opencode",
-							description: "Classic OpenCode sidebar layout",
+							description: "Klasické OpenCode rozložení panelu",
 						},
 						{
 							value: "preset compact",
 							label: "preset compact",
-							description: "Minimal compact vertical layout",
+							description: "Minimální kompaktní vertikální linka",
 						},
 						{
 							value: "preset detailed",
 							label: "preset detailed",
-							description: "Full telemetry dashboard in sidebar",
+							description: "Kompletní telemetrie, kvóty a kontextový pruh",
 						},
 					];
 					const filtered = presets.filter((i) =>
@@ -197,7 +198,7 @@ export function registerSidebarCommands(
 						{
 							value: "branding custom",
 							label: "branding custom",
-							description: "Custom brand text",
+							description: "Vlastní text v patičce",
 						},
 					];
 					const filtered = brandings.filter((i) =>
@@ -211,27 +212,27 @@ export function registerSidebarCommands(
 						{
 							value: "border line",
 							label: "border line",
-							description: "Single vertical line (│)",
+							description: "Jednoduchá svislá čára (│)",
 						},
 						{
 							value: "border double",
 							label: "border double",
-							description: "Double vertical line (║)",
+							description: "Dvojitá svislá čára (║)",
 						},
 						{
 							value: "border dotted",
 							label: "border dotted",
-							description: "Dotted line (┆)",
+							description: "Tečkovaná svislá čára (┆)",
 						},
 						{
 							value: "border space",
 							label: "border space",
-							description: "Space separator",
+							description: "Oddělení mezerou",
 						},
 						{
 							value: "border none",
 							label: "border none",
-							description: "No border separator",
+							description: "Bez oddělovače",
 						},
 					];
 					const filtered = borders.filter((i) =>
@@ -271,40 +272,40 @@ export function registerSidebarCommands(
 			) {
 				const cfg = getActiveConfig();
 				const helpText = [
-					"# /sidebar — Resizable & Collapsible Sidebar Controller",
-					"Docked right-hand sidebar with independent vertical scrolling and dynamic resizing.",
+					"# /sidebar — Správce rozbalovacího postranního panelu",
+					"Ukotvený pravý postranní panel s nezávislým vertikálním posunem a dynamickou změnou šířky.",
 					"",
-					"### Controls & Shortcuts:",
-					"  ctrl+shift+b               — Toggle collapse / expand («)",
-					"  ctrl+shift+↑/↓ (alt+↑/↓)   — Scroll sidebar up/down (±3 lines)",
-					"  ctrl+shift+pageUp/Down     — Scroll page up/down (±10 lines)",
-					"  ctrl+shift+→/← (alt+→/←)   — Resize width wider/narrower (±4 cols)",
+					"### Klávesové zkratky a ovládání:",
+					"  ctrl+shift+b               — Přepnout sbalení / rozbalení («)",
+					"  ctrl+shift+↑/↓             — Posunout obsah panelu nahoru/dolů (±3 řádky)",
+					"  ctrl+shift+pageUp/Down     — Posunout o celou stránku (±10 řádků)",
+					"  ctrl+shift+→/←             — Zvětšit / zmenšit šířku panelu (±4 sloupce)",
 					"",
-					"### Permanent Hints:",
-					"  Permanent shortcut cheatsheet is displayed at the bottom of the sidebar.",
+					"### Trvalá nápověda zkratek:",
+					"  Zkratkový tahák je trvale zobrazen ve spodní části postranního panelu.",
 					"",
-					"### Commands:",
-					"  /sidebar on|off|toggle     — Toggle collapse / expand",
-					"  /sidebar collapse|expand   — Explicit collapse or expand",
-					"  /sidebar scroll <up|down|top|bottom> [lines] — Scroll sidebar viewport",
-					"  /sidebar extensions on|off — Toggle all statusline items in sidebar",
-					"  /sidebar wider [delta]     — Increase column width (default: +4)",
-					"  /sidebar narrower [delta]  — Decrease column width (default: -4)",
-					"  /sidebar width <16-60>     — Set exact column width (default: 28)",
-					"  /sidebar preset <name>     — Switch preset (opencode | compact | detailed)",
-					"  /sidebar refresh           — Force refresh Kimi and Z.ai quotas",
-					"  /sidebar branding <type>   — Switch footer branding (opencode | pi | custom <text>)",
-					"  /sidebar border <style>    — Set border style (line | double | dotted | space | none)",
-					"  /sidebar reset             — Reset to defaults",
-					"  /sidebar help              — Show this help banner",
+					"### Příkazy:",
+					"  /sidebar on|off|toggle     — Zapnout / vypnout / přepnout panel",
+					"  /sidebar collapse|expand   — Explicitně sbalit nebo rozbalit",
+					"  /sidebar scroll <up|down|top|bottom> [řádky] — Posunout zobrazení panelu",
+					"  /sidebar extensions on|off — Zobrazit/skrýt rozšíření v postranním panelu",
+					"  /sidebar wider [delta]     — Zvětšit šířku panelu (výchozí: +4)",
+					"  /sidebar narrower [delta]  — Zmenšit šířku panelu (výchozí: -4)",
+					"  /sidebar width <16-60>     — Nastavit přesnou šířku panelu (výchozí: 28)",
+					"  /sidebar preset <název>    — Přepnout styl (opencode | compact | detailed)",
+					"  /sidebar refresh           — Vynutit obnovení kvót Kimi a Z.ai",
+					"  /sidebar branding <typ>    — Styl patičky (opencode | pi | custom <text>)",
+					"  /sidebar border <styl>     — Styl oddělovače (line | double | dotted | space | none)",
+					"  /sidebar reset             — Obnovit výchozí nastavení",
+					"  /sidebar help              — Zobrazit tuto nápovědu",
 					"",
-					"### Current State:",
-					`  • Status: ${cfg.enabled ? "Expanded" : "Collapsed («)"}`,
-					`  • Width: ${cfg.width} cols (min terminal: ${cfg.minTerminalWidth} cols)`,
-					`  • Preset: ${cfg.preset} | Extensions in sidebar: ${cfg.showExtensions ? "ON" : "OFF"}`,
-					`  • Branding: ${cfg.branding} | Border: ${cfg.borderStyle}`,
+					"### Aktuální stav:",
+					`  • Stav: ${cfg.enabled ? "Rozbaleno" : "Sbaleno («)"}`,
+					`  • Šířka: ${cfg.width} sloupců (min. šířka terminálu: ${cfg.minTerminalWidth} sloupců)`,
+					`  • Styl: ${cfg.preset} | Rozšíření v panelu: ${cfg.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
+					`  • Patička: ${cfg.branding} | Rámeček: ${cfg.borderStyle}`,
 					"",
-					"Tip: Append `--global` to persist setting across all future sessions.",
+					"Tip: Přidejte `--global` pro trvalé uložení do ~/.pi/agent/pi-sidebar.json pro všechny budoucí relace.",
 				].join("\n");
 
 				ctx.ui.notify(helpText, "info");
@@ -318,19 +319,19 @@ export function registerSidebarCommands(
 				case "on":
 				case "expand":
 					nextConfig.enabled = true;
-					ctx.ui.notify(`Sidebar expanded (${nextConfig.width} cols)`, "info");
+					ctx.ui.notify(`Postranní panel rozbalen (${nextConfig.width} sloupců)`, "info");
 					break;
 
 				case "off":
 				case "collapse":
 					nextConfig.enabled = false;
-					ctx.ui.notify("Sidebar collapsed («)", "info");
+					ctx.ui.notify("Postranní panel sbalen («)", "info");
 					break;
 
 				case "toggle":
 					nextConfig.enabled = !current.enabled;
 					ctx.ui.notify(
-						`Sidebar ${nextConfig.enabled ? `expanded (${nextConfig.width} cols)` : "collapsed («)"}`,
+						`Postranní panel ${nextConfig.enabled ? `rozbalen (${nextConfig.width} sloupců)` : "sbalen («)"}`,
 						"info",
 					);
 					break;
@@ -340,14 +341,14 @@ export function registerSidebarCommands(
 					const val = value.toLowerCase();
 					if (val === "on" || val === "true" || val === "show") {
 						nextConfig.showExtensions = true;
-						ctx.ui.notify("Statusline items in sidebar: ENABLED", "info");
+						ctx.ui.notify("Zobrazení rozšíření v panelu: ZAPNUTO", "info");
 					} else if (val === "off" || val === "false" || val === "hide") {
 						nextConfig.showExtensions = false;
-						ctx.ui.notify("Statusline items in sidebar: DISABLED", "info");
+						ctx.ui.notify("Zobrazení rozšíření v panelu: VYPNUTO", "info");
 					} else {
 						nextConfig.showExtensions = !current.showExtensions;
 						ctx.ui.notify(
-							`Statusline items in sidebar: ${nextConfig.showExtensions ? "ENABLED" : "DISABLED"}`,
+							`Zobrazení rozšíření v panelu: ${nextConfig.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
 							"info",
 						);
 					}
@@ -358,38 +359,34 @@ export function registerSidebarCommands(
 				case "up":
 				case "down": {
 					const dir =
-						subcommand === "scroll"
-							? (rest[0] ?? "down").toLowerCase()
-							: subcommand;
+						subcommand === "scroll" ? (rest[0] ?? "down").toLowerCase() : subcommand;
 					const count =
 						Number.parseInt(
-							subcommand === "scroll"
-								? (rest[1] ?? "3")
-								: (rest[0] ?? "3"),
+							subcommand === "scroll" ? (rest[1] ?? "3") : (rest[0] ?? "3"),
 							10,
 						) || 3;
 					if (dir === "top") {
 						onScrollTo?.(0);
-						ctx.ui.notify("Scrolled sidebar to top", "info");
+						ctx.ui.notify("Panel posunut na začátek", "info");
 					} else if (dir === "bottom") {
 						onScrollTo?.(9999);
-						ctx.ui.notify("Scrolled sidebar to bottom", "info");
+						ctx.ui.notify("Panel posunut na konec", "info");
 					} else if (dir === "up") {
 						onScrollBy?.(-count);
-						ctx.ui.notify(`Scrolled sidebar up (-${count} lines)`, "info");
+						ctx.ui.notify(`Panel posunut nahoru o ${count} řádků`, "info");
 					} else {
 						onScrollBy?.(count);
-						ctx.ui.notify(`Scrolled sidebar down (+${count} lines)`, "info");
+						ctx.ui.notify(`Panel posunut dolů o ${count} řádků`, "info");
 					}
 					return;
 				}
 
 				case "status": {
 					const msg = [
-						`Sidebar: ${current.enabled ? "EXPANDED" : "COLLAPSED («)"}`,
-						`Width: ${current.width} cols | Min Term Width: ${current.minTerminalWidth}`,
-						`Preset: ${current.preset} | Extensions: ${current.showExtensions ? "ON" : "OFF"}`,
-						`Branding: ${current.branding} | Border: ${current.borderStyle}`,
+						`Postranní panel: ${current.enabled ? "ROZBALENO" : "SBALENO («)"}`,
+						`Šířka: ${current.width} sloupců | Min. šířka terminálu: ${current.minTerminalWidth}`,
+						`Styl: ${current.preset} | Rozšíření: ${current.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
+						`Patička: ${current.branding} | Rámeček: ${current.borderStyle}`,
 					].join(" | ");
 					ctx.ui.notify(msg, "info");
 					return;
@@ -401,7 +398,7 @@ export function registerSidebarCommands(
 					nextConfig.width = newW;
 					nextConfig.enabled = true;
 					ctx.ui.notify(
-						`Sidebar width: ${newW} cols (+${newW - current.width})`,
+						`Šířka panelu: ${newW} sloupců (+${newW - current.width})`,
 						"info",
 					);
 					break;
@@ -413,7 +410,7 @@ export function registerSidebarCommands(
 					nextConfig.width = newW;
 					nextConfig.enabled = true;
 					ctx.ui.notify(
-						`Sidebar width: ${newW} cols (-${current.width - newW})`,
+						`Šířka panelu: ${newW} sloupců (-${current.width - newW})`,
 						"info",
 					);
 					break;
@@ -423,32 +420,29 @@ export function registerSidebarCommands(
 					if (value.startsWith("+") || value.startsWith("-")) {
 						const delta = Number.parseInt(value, 10);
 						if (!Number.isNaN(delta)) {
-							const newW = Math.max(
-								16,
-								Math.min(60, current.width + delta),
-							);
+							const newW = Math.max(16, Math.min(60, current.width + delta));
 							nextConfig.width = newW;
 							nextConfig.enabled = true;
-							ctx.ui.notify(`Sidebar width: ${newW} cols`, "info");
+							ctx.ui.notify(`Šířka panelu: ${newW} sloupců`, "info");
 							break;
 						}
 					}
 					const num = Number.parseInt(value, 10);
 					if (Number.isNaN(num) || num < 16 || num > 60) {
 						ctx.ui.notify(
-							"Width must be between 16 and 60 columns. (e.g. /sidebar resize +4 or /sidebar resize 32)",
+							"Šířka musí být v rozmezí 16 až 60 sloupců (např. /sidebar resize +4 nebo /sidebar resize 32).",
 							"warning",
 						);
 						return;
 					}
 					nextConfig.width = num;
 					nextConfig.enabled = true;
-					ctx.ui.notify(`Sidebar width: ${num} cols`, "info");
+					ctx.ui.notify(`Šířka panelu: ${num} sloupců`, "info");
 					break;
 				}
 
 				case "refresh": {
-					ctx.ui.notify("Refreshing provider quotas...", "info");
+					ctx.ui.notify("Obnovuji kvóty poskytovatelů...", "info");
 					void refreshKimiQuota(true, () => onConfigChanged(current, ctx));
 					void refreshZaiQuota(true, () => onConfigChanged(current, ctx));
 					return;
@@ -458,14 +452,14 @@ export function registerSidebarCommands(
 					const num = Number.parseInt(value, 10);
 					if (Number.isNaN(num) || num < 16 || num > 60) {
 						ctx.ui.notify(
-							"Width must be a number between 16 and 60 columns. (e.g. /sidebar width 28)",
+							"Šířka musí být číslo v rozmezí 16 až 60 sloupců (např. /sidebar width 28).",
 							"warning",
 						);
 						return;
 					}
 					nextConfig.width = num;
 					nextConfig.enabled = true;
-					ctx.ui.notify(`Sidebar width set to ${num} columns`, "info");
+					ctx.ui.notify(`Šířka panelu nastavena na ${num} sloupců`, "info");
 					break;
 				}
 
@@ -473,13 +467,13 @@ export function registerSidebarCommands(
 					const p = value.toLowerCase() as SidebarPreset;
 					if (!["opencode", "compact", "detailed"].includes(p)) {
 						ctx.ui.notify(
-							"Invalid preset. Choose: opencode, compact, or detailed",
+							"Neplatný styl. Vyberte: opencode, compact nebo detailed",
 							"warning",
 						);
 						return;
 					}
 					nextConfig.preset = p;
-					ctx.ui.notify(`Sidebar preset set to "${p}"`, "info");
+					ctx.ui.notify(`Styl postranního panelu nastaven na "${p}"`, "info");
 					break;
 				}
 
@@ -488,7 +482,7 @@ export function registerSidebarCommands(
 					const brandType = (parts[0] ?? "").toLowerCase() as SidebarBranding;
 					if (!["opencode", "pi", "custom"].includes(brandType)) {
 						ctx.ui.notify(
-							"Invalid branding. Choose: opencode, pi, or custom <text>",
+							"Neplatný typ patičky. Vyberte: opencode, pi nebo custom <text>",
 							"warning",
 						);
 						return;
@@ -497,7 +491,7 @@ export function registerSidebarCommands(
 					if (brandType === "custom" && parts.length > 1) {
 						nextConfig.customBrandingText = parts.slice(1).join(" ");
 					}
-					ctx.ui.notify(`Sidebar branding set to "${brandType}"`, "info");
+					ctx.ui.notify(`Patička panelu nastavena na "${brandType}"`, "info");
 					break;
 				}
 
@@ -505,24 +499,24 @@ export function registerSidebarCommands(
 					const b = value.toLowerCase() as SidebarBorderStyle;
 					if (!["line", "double", "dotted", "space", "none"].includes(b)) {
 						ctx.ui.notify(
-							"Invalid border style. Choose: line, double, dotted, space, none",
+							"Neplatný styl oddělovače. Vyberte: line, double, dotted, space, none",
 							"warning",
 						);
 						return;
 					}
 					nextConfig.borderStyle = b;
-					ctx.ui.notify(`Sidebar border style set to "${b}"`, "info");
+					ctx.ui.notify(`Styl oddělovače nastaven na "${b}"`, "info");
 					break;
 				}
 
 				case "reset":
 					nextConfig = { ...DEFAULT_CONFIG };
-					ctx.ui.notify("Sidebar settings reset to defaults", "info");
+					ctx.ui.notify("Nastavení postranního panelu bylo obnoveno na výchozí hodnoty", "info");
 					break;
 
 				default:
 					ctx.ui.notify(
-						`Unknown subcommand "${subcommand}". Use: /sidebar help`,
+						`Neznámý příkaz "${subcommand}". Použijte: /sidebar help`,
 						"warning",
 					);
 					return;

@@ -122,7 +122,7 @@ export default function (pi: ExtensionAPI): void {
 			applySidebar(currentTui, ctx, currentTheme, next);
 		}
 		ctx.ui.notify(
-			`Sidebar ${next.enabled ? `expanded (${next.width} cols)` : "collapsed («)"}`,
+			`Postranní panel ${next.enabled ? `rozbalen (${next.width} sloupců)` : "sbalen («)"}`,
 			"info",
 		);
 	}
@@ -136,7 +136,7 @@ export default function (pi: ExtensionAPI): void {
 		if (currentTui && currentTheme) {
 			applySidebar(currentTui, ctx, currentTheme, next);
 		}
-		ctx.ui.notify(`Sidebar width: ${newWidth} cols`, "info");
+		ctx.ui.notify(`Šířka postranního panelu: ${newWidth} sloupců`, "info");
 	}
 
 	function scrollSidebar(delta: number): void {
@@ -156,7 +156,11 @@ export default function (pi: ExtensionAPI): void {
 		const originalSetFooter = ctx.ui.setFooter.bind(ctx.ui);
 		ctx.ui.setFooter = (factory: FooterFactory) => {
 			if (typeof factory === "function") {
-				const wrappedFactory = (tui: TUI, theme: Theme, footerData: FooterDataProviderLike) => {
+				const wrappedFactory = (
+					tui: TUI,
+					theme: Theme,
+					footerData: FooterDataProviderLike,
+				) => {
 					capturedFooterData = footerData;
 					if (sidebarComponent) {
 						sidebarComponent.updateFooterData(footerData);
@@ -165,7 +169,9 @@ export default function (pi: ExtensionAPI): void {
 					unsubBranch = footerData?.onBranchChange?.(() => {
 						refreshUI();
 					});
-					return (factory as (t: TUI, th: Theme, fd: FooterDataProviderLike) => Component)(tui, theme, footerData);
+					return (
+						factory as (t: TUI, th: Theme, fd: FooterDataProviderLike) => Component
+					)(tui, theme, footerData);
 				};
 				// SAFETY: wrappedFactory matches the FooterFactory signature with injected telemetry interception
 				return originalSetFooter(wrappedFactory as unknown as FooterFactory);
@@ -220,77 +226,49 @@ export default function (pi: ExtensionAPI): void {
 
 	// 4. Keyboard shortcuts for collapsing, resizing, and vertical scrolling
 	pi.registerShortcut("ctrl+shift+b", {
-		description: "Toggle collapse / expand sidebar («)",
+		description: "Přepnout sbalení / rozbalení postranního panelu («)",
 		handler: (ctx) => {
 			toggleSidebar(ctx);
 		},
 	});
 
 	pi.registerShortcut("ctrl+shift+right", {
-		description: "Increase sidebar width (+4 cols)",
+		description: "Zvětšit šířku postranního panelu (+4 sloupce)",
 		handler: (ctx) => {
 			resizeSidebar(4, ctx);
 		},
 	});
 
 	pi.registerShortcut("ctrl+shift+left", {
-		description: "Decrease sidebar width (-4 cols)",
-		handler: (ctx) => {
-			resizeSidebar(-4, ctx);
-		},
-	});
-
-	pi.registerShortcut("alt+right", {
-		description: "Increase sidebar width (+4 cols)",
-		handler: (ctx) => {
-			resizeSidebar(4, ctx);
-		},
-	});
-
-	pi.registerShortcut("alt+left", {
-		description: "Decrease sidebar width (-4 cols)",
+		description: "Zmenšit šířku postranního panelu (-4 sloupce)",
 		handler: (ctx) => {
 			resizeSidebar(-4, ctx);
 		},
 	});
 
 	pi.registerShortcut("ctrl+shift+up", {
-		description: "Scroll sidebar upward (-3 lines)",
+		description: "Posunout postranní panel nahoru (-3 řádky)",
 		handler: () => {
 			scrollSidebar(-3);
 		},
 	});
 
 	pi.registerShortcut("ctrl+shift+down", {
-		description: "Scroll sidebar downward (+3 lines)",
-		handler: () => {
-			scrollSidebar(3);
-		},
-	});
-
-	pi.registerShortcut("alt+up", {
-		description: "Scroll sidebar upward (-3 lines)",
-		handler: () => {
-			scrollSidebar(-3);
-		},
-	});
-
-	pi.registerShortcut("alt+down", {
-		description: "Scroll sidebar downward (+3 lines)",
+		description: "Posunout postranní panel dolů (+3 řádky)",
 		handler: () => {
 			scrollSidebar(3);
 		},
 	});
 
 	pi.registerShortcut("ctrl+shift+pageUp", {
-		description: "Scroll sidebar page up (-10 lines)",
+		description: "Posunout postranní panel o stránku nahoru (-10 řádků)",
 		handler: () => {
 			scrollSidebar(-10);
 		},
 	});
 
 	pi.registerShortcut("ctrl+shift+pageDown", {
-		description: "Scroll sidebar page down (+10 lines)",
+		description: "Posunout postranní panel o stránku dolů (+10 řádků)",
 		handler: () => {
 			scrollSidebar(10);
 		},
