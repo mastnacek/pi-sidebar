@@ -34,7 +34,8 @@ const COMMAND_DOCS: Record<string, string> = {
 	preset: "přepnout styl zobrazení (opencode | compact | detailed)",
 	refresh: "vynutit aktualizaci kvót poskytovatelů (Kimi & Z.ai)",
 	branding: "přepnout text patičky (opencode | pi | custom)",
-	border: "nastavit styl oddělovacího rámečku (line | double | dotted | space | none)",
+	border:
+		"nastavit styl oddělovacího rámečku (line | double | dotted | space | none)",
 	status: "zobrazit aktuální konfiguraci a stav panelu",
 	reset: "obnovit výchozí nastavení panelu",
 	help: "zobrazit přehled příkazů a nápovědu",
@@ -319,7 +320,10 @@ export function registerSidebarCommands(
 				case "on":
 				case "expand":
 					nextConfig.enabled = true;
-					ctx.ui.notify(`Postranní panel rozbalen (${nextConfig.width} sloupců)`, "info");
+					ctx.ui.notify(
+						`Postranní panel rozbalen (${nextConfig.width} sloupců)`,
+						"info",
+					);
 					break;
 
 				case "off":
@@ -511,7 +515,10 @@ export function registerSidebarCommands(
 
 				case "reset":
 					nextConfig = { ...DEFAULT_CONFIG };
-					ctx.ui.notify("Nastavení postranního panelu bylo obnoveno na výchozí hodnoty", "info");
+					ctx.ui.notify(
+						"Nastavení postranního panelu bylo obnoveno na výchozí hodnoty",
+						"info",
+					);
 					break;
 
 				default:

@@ -197,11 +197,11 @@ export class SidebarComponent implements Component {
 		if (config.preset === "detailed") {
 			// 1. Session Section
 			if (config.showSession) {
-				topLines.push(header("SESSION"));
+				topLines.push(header("RELACE", "🏷️"));
 				const sessionName = this.ctx.sessionManager.getSessionName();
 				const sessionTitle = sessionName
 					? `🏷️ ${sessionName}`
-					: `New session • ${this.sessionStartIso.slice(11, 16)}`;
+					: `Nová relace • ${this.sessionStartIso.slice(11, 16)}`;
 				for (const line of this.wrapText(sessionTitle, innerWidth)) {
 					topLines.push(muted(line));
 				}
@@ -210,7 +210,7 @@ export class SidebarComponent implements Component {
 
 			// 2. Model & Thinking Section
 			if (config.showModel && model) {
-				topLines.push(header("MODEL"));
+				topLines.push(header("MODEL", "🤖"));
 				const modelId = model.id || "no-model";
 				const providerTag = model.provider ? `(${model.provider})` : "";
 				topLines.push(accent(modelId));
@@ -227,7 +227,7 @@ export class SidebarComponent implements Component {
 
 			// 3. Context & Cost Section
 			if (config.showContext) {
-				topLines.push(header("CONTEXT"));
+				topLines.push(header("KONTEXT", "📊"));
 
 				const barW = Math.max(6, Math.min(10, innerWidth - 6));
 				const autoStr = isAutoCompactEnabled(this.ctx.cwd) ? " (auto)" : "";
@@ -237,24 +237,24 @@ export class SidebarComponent implements Component {
 
 				const tokensUsed =
 					stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens;
-				const windowStr = `${formatTokensCompact(tokensUsed)} / ${formatTokensCompact(stats.contextWindow)} tokens`;
+				const windowStr = `${formatTokensCompact(tokensUsed)} / ${formatTokensCompact(stats.contextWindow)} tokenů`;
 				topLines.push(muted(windowStr));
 
-				const costStr = `💰 $${(stats.totalCost || 0).toFixed(stats.totalCost < 0.01 ? 4 : 3)} spent`;
+				const costStr = `💰 $${(stats.totalCost || 0).toFixed(stats.totalCost < 0.01 ? 4 : 3)} útrata`;
 				topLines.push(warning(costStr));
 				topLines.push("");
 			}
 
 			// 4. Token & Cache Breakdown Section
 			if (config.showCache) {
-				topLines.push(header("TOKENS & CACHE"));
-				const inOutStr = `↑ ${formatTokensCompact(stats.totalInputTokens)} in  ↓ ${formatTokensCompact(stats.totalOutputTokens)} out`;
+				topLines.push(header("TOKENY A CACHE", "📦"));
+				const inOutStr = `↑ ${formatTokensCompact(stats.totalInputTokens)} vstup  ↓ ${formatTokensCompact(stats.totalOutputTokens)} výstup`;
 				topLines.push(dim(inOutStr));
 
 				if (stats.totalCacheRead > 0 || stats.totalCacheWrite > 0) {
 					let cacheStr = `📦 ${formatTokensCompact(stats.totalCacheRead)} cache`;
 					if (stats.cacheHitRate !== undefined) {
-						cacheStr += ` 🎯${stats.cacheHitRate.toFixed(0)}% hit`;
+						cacheStr += ` 🎯 ${stats.cacheHitRate.toFixed(0)}% zásah`;
 					}
 					topLines.push(muted(cacheStr));
 				}
@@ -271,7 +271,7 @@ export class SidebarComponent implements Component {
 				const zai = getZaiQuotas();
 
 				if (isKimi && kimi?.usage) {
-					topLines.push(header("QUOTA"));
+					topLines.push(header("KVÓTY", "⚡"));
 					const used = Number(kimi.usage.used ?? 0);
 					const limit = Number(kimi.usage.limit ?? 0);
 					const pct = limit > 0 ? (used / limit) * 100 : 0;
@@ -279,7 +279,7 @@ export class SidebarComponent implements Component {
 					const bar = qColor(contextBar(pct, 6));
 
 					topLines.push(`Týden: ${bar} ${qColor(`${pct.toFixed(0)}%`)}`);
-					topLines.push(dim(`Rst: ${formatResetTime(kimi.usage.resetTime)}`));
+					topLines.push(dim(`Reset: ${formatResetTime(kimi.usage.resetTime)}`));
 
 					const detail5h = kimi.limits?.[0]?.detail;
 					if (detail5h) {
@@ -291,7 +291,7 @@ export class SidebarComponent implements Component {
 					}
 					topLines.push("");
 				} else if (isZai && zai?.limits?.length) {
-					topLines.push(header("QUOTA"));
+					topLines.push(header("KVÓTY", "⚡"));
 					const zLimits = zai.limits.filter((l) => l.type === "TOKENS_LIMIT");
 					const fiveHour = zLimits.find((l) => l.unit === 3) ?? zLimits[0];
 					const weekly = zLimits.find((l) => l.unit === 6) ?? zLimits[1];
@@ -320,7 +320,7 @@ export class SidebarComponent implements Component {
 			if (config.showExtensions && this.footerData) {
 				const extMap = this.footerData.getExtensionStatuses();
 				if (extMap && extMap.size > 0) {
-					topLines.push(header("EXTENSIONS"));
+					topLines.push(header("ROZŠÍŘENÍ", "🧩"));
 					for (const [key, rawVal] of Array.from(extMap.entries()).sort(([a], [b]) =>
 						a.localeCompare(b),
 					)) {
@@ -328,16 +328,22 @@ export class SidebarComponent implements Component {
 						const cleaned = cleanStatusText(rawVal);
 						if (!cleaned) continue;
 
-						let prefix = "• ";
-						if (key.includes("translate")) prefix = "🌐 ";
-						else if (key.includes("spai")) prefix = "📋 ";
-						else if (key.includes("radar") || key.includes("adr")) prefix = "🛡️ ";
-						else if (key.includes("subagent")) prefix = "🤖 ";
-						else if (key.includes("lsp")) prefix = "⚡ ";
-						else if (key.includes("proj")) prefix = "📁 ";
-						else if (key.includes("tts") || key.includes("sound")) prefix = "🔊 ";
+						let fullItem = cleaned;
+						const hasIcon = /^(\p{Extended_Pictographic}|[•🌿📊📁🛡️🤖⚡🔊🌐📋💰🏷️📦🎯│])/u.test(
+							cleaned,
+						);
+						if (!hasIcon) {
+							let prefix = "• ";
+							if (key.includes("translate")) prefix = "🌐 ";
+							else if (key.includes("spai")) prefix = "📋 ";
+							else if (key.includes("radar") || key.includes("adr")) prefix = "🛡️ ";
+							else if (key.includes("subagent")) prefix = "🤖 ";
+							else if (key.includes("lsp")) prefix = "⚡ ";
+							else if (key.includes("proj")) prefix = "📁 ";
+							else if (key.includes("tts") || key.includes("sound")) prefix = "🔊 ";
+							fullItem = `${prefix}${cleaned}`;
+						}
 
-						const fullItem = `${prefix}${cleaned}`;
 						for (const wrapped of this.wrapText(fullItem, innerWidth)) {
 							topLines.push(muted(wrapped));
 						}
@@ -348,7 +354,7 @@ export class SidebarComponent implements Component {
 
 			// 7. LSP & Tools Section
 			if (config.showLsp) {
-				topLines.push(header("LSP"));
+				topLines.push(header("NÁSTROJE / LSP", "⚡"));
 				let activeTools: string[] = [];
 				try {
 					activeTools = this.pi.getActiveTools();
@@ -365,9 +371,9 @@ export class SidebarComponent implements Component {
 				});
 
 				if (lspTools.length > 0) {
-					topLines.push(success(`Active (${lspTools.length} tools)`));
+					topLines.push(success(`Aktivní (${lspTools.length} nástrojů)`));
 				} else {
-					topLines.push(muted("LSPs disabled"));
+					topLines.push(muted("LSP neaktivní"));
 				}
 				topLines.push("");
 			}
@@ -472,14 +478,14 @@ export class SidebarComponent implements Component {
 			const formattedPath = formatProjectPath(cwd, gitInfo.branch);
 
 			if (config.preset === "detailed") {
-				bottomLines.push(header("WORKSPACE"));
+				bottomLines.push(header("PRACOVNÍ PROSTOR", "📁"));
 				const wrappedPath = this.wrapText(`📁 ${formattedPath}`, innerWidth);
 				for (const line of wrappedPath) {
 					bottomLines.push(th.fg("customMessageLabel", line));
 				}
 
 				if (gitInfo.branch) {
-					const dirtyIcon = gitInfo.dirty ? "● dirty" : "○ clean";
+					const dirtyIcon = gitInfo.dirty ? "● změny" : "○ čisté";
 					const dirtyColor = gitInfo.dirty ? warning : success;
 					let gitMeta = `🌿 ${gitInfo.branch} ${dirtyColor(dirtyIcon)}`;
 					if (gitInfo.ahead > 0) gitMeta += dim(` ▸${gitInfo.ahead}`);
@@ -498,10 +504,10 @@ export class SidebarComponent implements Component {
 		// =========================================================================
 		// Permanent Shortcut Hints Section
 		// =========================================================================
-		bottomLines.push(header("SHORTCUTS"));
-		bottomLines.push(dim("⌨️ ctrl+shift+b    « toggle"));
-		bottomLines.push(dim("⌨️ ctrl+shift+↑/↓  scroll"));
-		bottomLines.push(dim("⌨️ ctrl+shift+←/→  resize"));
+		bottomLines.push(header("ZKRATKY", "⌨️"));
+		bottomLines.push(dim("⌨️ ctrl+shift+b    « sbalit/rozbalit"));
+		bottomLines.push(dim("⌨️ ctrl+shift+↑/↓  posun"));
+		bottomLines.push(dim("⌨️ ctrl+shift+←/→  šířka"));
 		bottomLines.push("");
 
 		// =========================================================================
