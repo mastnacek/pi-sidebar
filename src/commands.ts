@@ -28,6 +28,7 @@ const COMMAND_DOCS: Record<string, string> = {
 	wider: "increase sidebar width (+4 cols, ctrl+shift+→)",
 	narrower: "decrease sidebar width (-4 cols, ctrl+shift+←)",
 	scroll: "scroll sidebar vertically (up | down | top | bottom)",
+	extensions: "toggle statusline extension items in sidebar (on | off | toggle)",
 	width: "set sidebar column width (16-60)",
 	resize: "adjust sidebar width (+N or -N)",
 	preset: "switch content preset (opencode | compact | detailed)",
@@ -73,6 +74,30 @@ export function registerSidebarCommands(
 					].includes(cmd)
 				) {
 					return null;
+				}
+
+				if (cmd === "extensions" || cmd === "statusline") {
+					const extOptions = [
+						{
+							value: `${cmd} on`,
+							label: `${cmd} on`,
+							description: "Show all statusline items in sidebar",
+						},
+						{
+							value: `${cmd} off`,
+							label: `${cmd} off`,
+							description: "Hide statusline items from sidebar",
+						},
+						{
+							value: `${cmd} toggle`,
+							label: `${cmd} toggle`,
+							description: "Toggle statusline items in sidebar",
+						},
+					];
+					const filtered = extOptions.filter((i) =>
+						i.value.toLowerCase().startsWith(normalizedPrefix),
+					);
+					return filtered.length > 0 ? filtered : null;
 				}
 
 				if (cmd === "scroll") {
@@ -262,6 +287,7 @@ export function registerSidebarCommands(
 					"  /sidebar on|off|toggle     — Toggle collapse / expand",
 					"  /sidebar collapse|expand   — Explicit collapse or expand",
 					"  /sidebar scroll <up|down|top|bottom> [lines] — Scroll sidebar viewport",
+					"  /sidebar extensions on|off — Toggle all statusline items in sidebar",
 					"  /sidebar wider [delta]     — Increase column width (default: +4)",
 					"  /sidebar narrower [delta]  — Decrease column width (default: -4)",
 					"  /sidebar width <16-60>     — Set exact column width (default: 28)",
@@ -275,7 +301,8 @@ export function registerSidebarCommands(
 					"### Current State:",
 					`  • Status: ${cfg.enabled ? "Expanded" : "Collapsed («)"}`,
 					`  • Width: ${cfg.width} cols (min terminal: ${cfg.minTerminalWidth} cols)`,
-					`  • Preset: ${cfg.preset} | Branding: ${cfg.branding} | Border: ${cfg.borderStyle}`,
+					`  • Preset: ${cfg.preset} | Extensions in sidebar: ${cfg.showExtensions ? "ON" : "OFF"}`,
+					`  • Branding: ${cfg.branding} | Border: ${cfg.borderStyle}`,
 					"",
 					"Tip: Append `--global` to persist setting across all future sessions.",
 				].join("\n");
@@ -307,6 +334,25 @@ export function registerSidebarCommands(
 						"info",
 					);
 					break;
+
+				case "extensions":
+				case "statusline": {
+					const val = value.toLowerCase();
+					if (val === "on" || val === "true" || val === "show") {
+						nextConfig.showExtensions = true;
+						ctx.ui.notify("Statusline items in sidebar: ENABLED", "info");
+					} else if (val === "off" || val === "false" || val === "hide") {
+						nextConfig.showExtensions = false;
+						ctx.ui.notify("Statusline items in sidebar: DISABLED", "info");
+					} else {
+						nextConfig.showExtensions = !current.showExtensions;
+						ctx.ui.notify(
+							`Statusline items in sidebar: ${nextConfig.showExtensions ? "ENABLED" : "DISABLED"}`,
+							"info",
+						);
+					}
+					break;
+				}
 
 				case "scroll":
 				case "up":
@@ -342,7 +388,8 @@ export function registerSidebarCommands(
 					const msg = [
 						`Sidebar: ${current.enabled ? "EXPANDED" : "COLLAPSED («)"}`,
 						`Width: ${current.width} cols | Min Term Width: ${current.minTerminalWidth}`,
-						`Preset: ${current.preset} | Branding: ${current.branding} | Border: ${current.borderStyle}`,
+						`Preset: ${current.preset} | Extensions: ${current.showExtensions ? "ON" : "OFF"}`,
+						`Branding: ${current.branding} | Border: ${current.borderStyle}`,
 					].join(" | ");
 					ctx.ui.notify(msg, "info");
 					return;

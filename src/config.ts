@@ -30,6 +30,7 @@ export const DEFAULT_CONFIG: SidebarConfig = {
 	showContext: true,
 	showCache: true,
 	showQuota: true,
+	showExtensions: false,
 	showLsp: true,
 	showGit: true,
 };
@@ -218,6 +219,11 @@ export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 			sessionCfg?.showQuota,
 			globalCfg.showQuota,
 			DEFAULT_CONFIG.showQuota,
+		),
+		showExtensions: resolveBoolean(
+			sessionCfg?.showExtensions,
+			globalCfg.showExtensions,
+			DEFAULT_CONFIG.showExtensions,
 		),
 		showLsp: resolveBoolean(
 			sessionCfg?.showLsp,

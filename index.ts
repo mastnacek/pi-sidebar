@@ -14,7 +14,7 @@ import {
 import { SidebarAwareEditor } from "./src/editor-wrapper.js";
 import { refreshKimiQuota, refreshZaiQuota } from "./src/quota.js";
 import { SidebarComponent } from "./src/sidebar-component.js";
-import type { SidebarConfig } from "./src/types.js";
+import type { FooterDataProviderLike, SidebarConfig } from "./src/types.js";
 
 class InvisibleMountComponent implements Component {
 	render(_width: number): string[] {
@@ -29,12 +29,17 @@ export default function (pi: ExtensionAPI): void {
 	let currentTui: TUI | null = null;
 	let currentContext: ExtensionContext | null = null;
 	let currentTheme: Theme | null = null;
+	let capturedFooterData: FooterDataProviderLike | null = null;
+	let unsubBranch: (() => void) | null = null;
 
 	const refreshUI = () => {
 		if (currentTui && currentContext && currentTheme) {
 			if (sidebarComponent) {
 				sidebarComponent.updateContext(currentContext);
 				sidebarComponent.updateTheme(currentTheme);
+				if (capturedFooterData) {
+					sidebarComponent.updateFooterData(capturedFooterData);
+				}
 			}
 			currentTui.requestRender();
 		}
@@ -79,8 +84,14 @@ export default function (pi: ExtensionAPI): void {
 		if (sidebarComponent) {
 			sidebarComponent.updateContext(ctx);
 			sidebarComponent.updateTheme(theme);
+			if (capturedFooterData) {
+				sidebarComponent.updateFooterData(capturedFooterData);
+			}
 		} else {
 			sidebarComponent = new SidebarComponent(tui, pi, ctx, theme);
+			if (capturedFooterData) {
+				sidebarComponent.updateFooterData(capturedFooterData);
+			}
 		}
 
 		overlayHandle = tui.showOverlay(sidebarComponent, {
@@ -140,6 +151,28 @@ export default function (pi: ExtensionAPI): void {
 		currentContext = ctx;
 		if (!ctx.hasUI || ctx.mode !== "tui") return;
 
+		// Intercept setFooter to transparently capture live footerData
+		type FooterFactory = Parameters<ExtensionContext["ui"]["setFooter"]>[0];
+		const originalSetFooter = ctx.ui.setFooter.bind(ctx.ui);
+		ctx.ui.setFooter = (factory: FooterFactory) => {
+			if (typeof factory === "function") {
+				const wrappedFactory = (tui: TUI, theme: Theme, footerData: FooterDataProviderLike) => {
+					capturedFooterData = footerData;
+					if (sidebarComponent) {
+						sidebarComponent.updateFooterData(footerData);
+					}
+					unsubBranch?.();
+					unsubBranch = footerData?.onBranchChange?.(() => {
+						refreshUI();
+					});
+					return (factory as (t: TUI, th: Theme, fd: FooterDataProviderLike) => Component)(tui, theme, footerData);
+				};
+				// SAFETY: wrappedFactory matches the FooterFactory signature with injected telemetry interception
+				return originalSetFooter(wrappedFactory as unknown as FooterFactory);
+			}
+			return originalSetFooter(factory);
+		};
+
 		// Mount invisible widget to obtain live TUI reference and trigger overlay setup
 		ctx.ui.setWidget("pi-sidebar-mount", (tui: TUI, theme: Theme) => {
 			applySidebar(tui, ctx, theme);
@@ -179,6 +212,8 @@ export default function (pi: ExtensionAPI): void {
 			overlayHandle.hide();
 			overlayHandle = null;
 		}
+		unsubBranch?.();
+		unsubBranch = null;
 		sidebarComponent = null;
 		currentTui = null;
 	});

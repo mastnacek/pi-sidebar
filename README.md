@@ -56,6 +56,8 @@ Control the sidebar at any time using the `/sidebar` slash command:
 ```text
 /sidebar on|off|toggle     — Toggle collapse / expand
 /sidebar collapse|expand   — Explicitly collapse or expand
+/sidebar scroll <up|down|top|bottom> [lines] — Scroll sidebar vertically
+/sidebar extensions on|off — Toggle all statusline extension items in sidebar
 /sidebar wider [delta]     — Increase column width (default: +4)
 /sidebar narrower [delta]  — Decrease column width (default: -4)
 /sidebar width <16-60>     — Set exact column width (default: 28)
@@ -88,6 +90,7 @@ Stored locally per-session or globally under `~/.pi/agent/pi-sidebar.json`:
   "showContext": true,
   "showCache": true,
   "showQuota": true,
+  "showExtensions": false,
   "showLsp": true,
   "showGit": true
 }

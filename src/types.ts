@@ -20,6 +20,7 @@ export interface SidebarConfig {
 	showContext: boolean;
 	showCache: boolean;
 	showQuota: boolean;
+	showExtensions: boolean;
 	showLsp: boolean;
 	showGit: boolean;
 }
@@ -72,4 +73,11 @@ export interface ZaiLimit {
 export interface ZaiQuota {
 	limits?: ZaiLimit[];
 	level?: string;
+}
+
+export interface FooterDataProviderLike {
+	getGitBranch(): string | null;
+	getExtensionStatuses(): ReadonlyMap<string, string>;
+	getAvailableProviderCount(): number;
+	onBranchChange(callback: () => void): () => void;
 }

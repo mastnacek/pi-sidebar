@@ -24,6 +24,7 @@ test("DEFAULT_CONFIG has valid OpenCode defaults", () => {
 	assert.equal(DEFAULT_CONFIG.showModel, true);
 	assert.equal(DEFAULT_CONFIG.showQuota, true);
 	assert.equal(DEFAULT_CONFIG.showCache, true);
+	assert.equal(DEFAULT_CONFIG.showExtensions, false);
 	assert.equal(DEFAULT_CONFIG.showLsp, true);
 	assert.equal(DEFAULT_CONFIG.showGit, true);
 });
@@ -87,7 +88,10 @@ test("getGitInfo returns branch information in git directory", () => {
 
 test("SidebarComponent handles scrolling offset bounds", () => {
 	const mockTui: any = { terminal: { rows: 24, columns: 80 } };
-	const mockPi: any = { getActiveTools: () => [], getThinkingLevel: () => "off" };
+	const mockPi: any = {
+		getActiveTools: () => [],
+		getThinkingLevel: () => "off",
+	};
 	const mockCtx: any = {
 		cwd: process.cwd(),
 		model: { id: "test-model" },
@@ -117,9 +121,11 @@ test("getActiveConfig and setActiveConfig update active state", () => {
 		...DEFAULT_CONFIG,
 		width: 32,
 		preset: "detailed" as const,
+		showExtensions: true,
 	};
 	setActiveConfig(custom);
 	assert.equal(getActiveConfig().width, 32);
 	assert.equal(getActiveConfig().preset, "detailed");
+	assert.equal(getActiveConfig().showExtensions, true);
 	setActiveConfig(DEFAULT_CONFIG);
 });

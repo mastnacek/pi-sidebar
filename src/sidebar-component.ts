@@ -27,6 +27,7 @@ import {
 	getSessionStats,
 	isAutoCompactEnabled,
 } from "./stats.js";
+import type { FooterDataProviderLike } from "./types.js";
 
 const BORDER_CHARS = {
 	line: "│ ",
@@ -36,6 +37,19 @@ const BORDER_CHARS = {
 	none: "",
 };
 
+function stripAnsi(str: string): string {
+	return str
+		.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
+		.replace(/\x1b\([a-zA-Z]/g, "");
+}
+
+function cleanStatusText(text: string): string {
+	return stripAnsi(text)
+		.replace(/[\r\n\t]+/g, " ")
+		.replace(/ +/g, " ")
+		.trim();
+}
+
 export class SidebarComponent implements Component {
 	private tui: TUI;
 	private pi: ExtensionAPI;
@@ -43,6 +57,7 @@ export class SidebarComponent implements Component {
 	private theme: Theme;
 	private sessionStartIso: string;
 	private scrollOffset = 0;
+	private footerData: FooterDataProviderLike | null = null;
 
 	constructor(tui: TUI, pi: ExtensionAPI, ctx: ExtensionContext, theme: Theme) {
 		this.tui = tui;
@@ -58,6 +73,10 @@ export class SidebarComponent implements Component {
 
 	updateTheme(theme: Theme): void {
 		this.theme = theme;
+	}
+
+	updateFooterData(footerData: FooterDataProviderLike | null): void {
+		this.footerData = footerData;
 	}
 
 	scrollBy(delta: number): number {
@@ -300,7 +319,39 @@ export class SidebarComponent implements Component {
 				}
 			}
 
-			// 6. LSP & Tools Section
+			// 6. Optional Extension Statuses (toggled via /sidebar extensions on|off)
+			if (config.showExtensions && this.footerData) {
+				const extMap = this.footerData.getExtensionStatuses();
+				if (extMap && extMap.size > 0) {
+					topLines.push(header("EXTENSIONS"));
+					for (const [key, rawVal] of Array.from(extMap.entries()).sort(
+						([a], [b]) => a.localeCompare(b),
+					)) {
+						if (!rawVal) continue;
+						const cleaned = cleanStatusText(rawVal);
+						if (!cleaned) continue;
+
+						let prefix = "• ";
+						if (key.includes("translate")) prefix = "🌐 ";
+						else if (key.includes("spai")) prefix = "📋 ";
+						else if (key.includes("radar") || key.includes("adr"))
+							prefix = "🛡️ ";
+						else if (key.includes("subagent")) prefix = "🤖 ";
+						else if (key.includes("lsp")) prefix = "⚡ ";
+						else if (key.includes("proj")) prefix = "📁 ";
+						else if (key.includes("tts") || key.includes("sound"))
+							prefix = "🔊 ";
+
+						const fullItem = `${prefix}${cleaned}`;
+						for (const wrapped of this.wrapText(fullItem, innerWidth)) {
+							topLines.push(muted(wrapped));
+						}
+					}
+					topLines.push("");
+				}
+			}
+
+			// 7. LSP & Tools Section
 			if (config.showLsp) {
 				topLines.push(header("LSP"));
 				let activeTools: string[] = [];
