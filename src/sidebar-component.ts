@@ -9,6 +9,8 @@ import {
 	sliceByColumn,
 	visibleWidth,
 } from "@earendil-works/pi-tui";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { getActiveConfig } from "./config.js";
 import { formatProjectPath, getGitInfo } from "./git.js";
 import {
@@ -48,6 +50,56 @@ function cleanStatusText(text: string): string {
 		.replace(/[\r\n\t]+/g, " ")
 		.replace(/ +/g, " ")
 		.trim();
+}
+
+function getWorkspaceLspServers(cwd: string, activeTools: string[]): string[] {
+	const servers: string[] = [];
+
+	const hasLotus = activeTools.some((t) =>
+		t.toLowerCase().includes("lotusscript"),
+	);
+	const hasLens = activeTools.some(
+		(t) =>
+			t.toLowerCase().includes("lens") ||
+			t.toLowerCase().includes("lsp_diagnostics"),
+	);
+
+	// Detect workspace project language servers
+	if (
+		existsSync(join(cwd, "tsconfig.json")) ||
+		existsSync(join(cwd, "package.json"))
+	) {
+		servers.push("TypeScript");
+	} else if (existsSync(join(cwd, "Cargo.toml"))) {
+		servers.push("Rust (rust-analyzer)");
+	} else if (existsSync(join(cwd, "go.mod"))) {
+		servers.push("Go (gopls)");
+	} else if (
+		existsSync(join(cwd, "pyproject.toml")) ||
+		existsSync(join(cwd, "requirements.txt")) ||
+		existsSync(join(cwd, "setup.py"))
+	) {
+		servers.push("Python (pyright)");
+	} else if (
+		existsSync(join(cwd, "pom.xml")) ||
+		existsSync(join(cwd, "build.gradle"))
+	) {
+		servers.push("Java (jdtls)");
+	} else if (
+		existsSync(join(cwd, "CMakeLists.txt")) ||
+		existsSync(join(cwd, "Makefile"))
+	) {
+		servers.push("C/C++ (clangd)");
+	}
+
+	if (hasLotus) {
+		servers.push("LotusScript");
+	}
+	if (hasLens && !servers.some((s) => s.includes("TypeScript"))) {
+		servers.push("pi-lens (AST)");
+	}
+
+	return servers;
 }
 
 export class SidebarComponent implements Component {
@@ -386,7 +438,7 @@ export class SidebarComponent implements Component {
 				topLines.push("");
 			}
 
-			// 7. Dedicated LSP Section
+			// 7. Dedicated LSP Section (OpenCode style language servers)
 			if (config.showLsp) {
 				topLines.push(header("LSP", "⚡"));
 				let activeTools: string[] = [];
@@ -395,33 +447,13 @@ export class SidebarComponent implements Component {
 				} catch {
 					// Non-fatal
 				}
-				const lspTools = activeTools.filter((t: string) => {
-					const lower = t.toLowerCase();
-					return (
-						lower.includes("lsp") ||
-						lower.includes("lens") ||
-						lower.includes("ast_grep")
-					);
-				});
-
-				let hasActiveLspStatus = false;
-				if (lspEntries.length > 0) {
-					for (const [, rawVal] of lspEntries) {
-						const cleaned = cleanStatusText(rawVal);
-						if (!cleaned || /lsp inactive/i.test(cleaned)) continue;
-						hasActiveLspStatus = true;
-						for (const wrapped of this.wrapText(cleaned, innerWidth)) {
-							topLines.push(success(wrapped));
-						}
+				const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
+				if (servers.length > 0) {
+					for (const s of servers) {
+						topLines.push(success(`• ${s}`));
 					}
-				}
-
-				if (!hasActiveLspStatus) {
-					if (lspTools.length > 0) {
-						topLines.push(success(`Aktivní (${lspTools.length} nástrojů)`));
-					} else {
-						topLines.push(muted("LSP neaktivní"));
-					}
+				} else {
+					topLines.push(muted("LSP neaktivní"));
 				}
 				topLines.push("");
 			}
@@ -525,7 +557,7 @@ export class SidebarComponent implements Component {
 				topLines.push("");
 			}
 
-			// 3. LSP Section
+			// 3. LSP Section (OpenCode classic layout)
 			if (config.showLsp) {
 				topLines.push(accent("LSP"));
 
@@ -536,17 +568,11 @@ export class SidebarComponent implements Component {
 					// Non-fatal fallback
 				}
 
-				const lspTools = activeTools.filter((t: string) => {
-					const lower = t.toLowerCase();
-					return (
-						lower.includes("lsp") ||
-						lower.includes("lens") ||
-						lower.includes("ast_grep")
-					);
-				});
-
-				if (lspTools.length > 0) {
-					topLines.push(muted(`Active (${lspTools.length} tools)`));
+				const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
+				if (servers.length > 0) {
+					for (const s of servers) {
+						topLines.push(muted(s));
+					}
 				} else {
 					topLines.push(muted("LSPs are disabled"));
 				}
