@@ -176,7 +176,7 @@ export default function (pi: ExtensionAPI): void {
 		currentTui = null;
 	});
 
-	// 4. Keyboard shortcuts for collapsing and resizing
+	// 4. Keyboard shortcuts for collapsing and resizing (layout-agnostic, works on Czech keyboard)
 	pi.registerShortcut("ctrl+shift+b", {
 		description: "Toggle collapse / expand sidebar («)",
 		handler: (ctx) => {
@@ -184,14 +184,28 @@ export default function (pi: ExtensionAPI): void {
 		},
 	});
 
-	pi.registerShortcut("alt+]", {
+	pi.registerShortcut("ctrl+shift+right", {
 		description: "Increase sidebar width (+4 cols)",
 		handler: (ctx) => {
 			resizeSidebar(4, ctx);
 		},
 	});
 
-	pi.registerShortcut("alt+[", {
+	pi.registerShortcut("ctrl+shift+left", {
+		description: "Decrease sidebar width (-4 cols)",
+		handler: (ctx) => {
+			resizeSidebar(-4, ctx);
+		},
+	});
+
+	pi.registerShortcut("alt+right", {
+		description: "Increase sidebar width (+4 cols)",
+		handler: (ctx) => {
+			resizeSidebar(4, ctx);
+		},
+	});
+
+	pi.registerShortcut("alt+left", {
 		description: "Decrease sidebar width (-4 cols)",
 		handler: (ctx) => {
 			resizeSidebar(-4, ctx);

@@ -25,8 +25,8 @@ const COMMAND_DOCS: Record<string, string> = {
 	toggle: "toggle collapse / expand sidebar (ctrl+shift+b)",
 	collapse: "collapse sidebar overlay",
 	expand: "expand sidebar overlay",
-	wider: "increase sidebar width (+4 cols, alt+])",
-	narrower: "decrease sidebar width (-4 cols, alt+[)",
+	wider: "increase sidebar width (+4 cols, ctrl+shift+→)",
+	narrower: "decrease sidebar width (-4 cols, ctrl+shift+←)",
 	width: "set sidebar column width (16-60)",
 	resize: "adjust sidebar width (+N or -N)",
 	preset: "switch content preset (opencode | compact | detailed)",
@@ -219,7 +219,11 @@ export function registerSidebarCommands(
 					"",
 					"### Controls & Shortcuts:",
 					"  ctrl+shift+b               — Toggle collapse / expand («)",
-					"  alt+] / alt+[              — Resize width wider / narrower (±4 cols)",
+					"  ctrl+shift+→ / alt+→       — Resize width wider (+4 cols)",
+					"  ctrl+shift+← / alt+←       — Resize width narrower (-4 cols)",
+					"",
+					"### Permanent Hints:",
+					"  Permanent shortcut cheatsheet is displayed at the bottom of the sidebar.",
 					"",
 					"### Commands:",
 					"  /sidebar on|off|toggle     — Toggle collapse / expand",
@@ -285,7 +289,10 @@ export function registerSidebarCommands(
 					const newW = Math.min(60, current.width + Math.abs(delta));
 					nextConfig.width = newW;
 					nextConfig.enabled = true;
-					ctx.ui.notify(`Sidebar width: ${newW} cols (+${newW - current.width})`, "info");
+					ctx.ui.notify(
+						`Sidebar width: ${newW} cols (+${newW - current.width})`,
+						"info",
+					);
 					break;
 				}
 
@@ -294,7 +301,10 @@ export function registerSidebarCommands(
 					const newW = Math.max(16, current.width - Math.abs(delta));
 					nextConfig.width = newW;
 					nextConfig.enabled = true;
-					ctx.ui.notify(`Sidebar width: ${newW} cols (-${current.width - newW})`, "info");
+					ctx.ui.notify(
+						`Sidebar width: ${newW} cols (-${current.width - newW})`,
+						"info",
+					);
 					break;
 				}
 

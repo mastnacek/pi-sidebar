@@ -10,8 +10,8 @@ Provides an elegant, non-intrusive vertical sidebar docked to the right edge of 
 
 - **Resizable & Collapsible (Herdr-Style)**:
   - Quick toggle collapse/expand via `ctrl+shift+b` or `/sidebar toggle`.
-  - Herdr-style collapse badge (`«`) in the bottom-right corner.
-  - On-the-fly resizing via `alt+]` (wider +4) and `alt+[` (narrower -4) or `/sidebar wider` / `/sidebar narrower`.
+  - Permanent shortcut hints displayed on the bottom of the sidebar.
+  - Layout-agnostic resizing (works on Czech & international keyboards) via `ctrl+shift+→` / `alt+→` (wider) and `ctrl+shift+←` / `alt+←` (narrower) or `/sidebar wider` / `/sidebar narrower`.
 - **OpenCode Visual Fidelity & Rich Presets**:
   - `opencode`: Classic OpenCode sidebar layout.
   - `compact`: Minimal vertical line layout.
@@ -44,8 +44,8 @@ Provides an elegant, non-intrusive vertical sidebar docked to the right edge of 
 | Shortcut | Action | Description |
 | --- | --- | --- |
 | `ctrl+shift+b` | **Toggle Collapse** | Collapse (`«`) or expand sidebar overlay |
-| `alt+]` | **Wider** | Increase sidebar column width (+4 columns) |
-| `alt+[` | **Narrower** | Decrease sidebar column width (-4 columns) |
+| `ctrl+shift+right` / `alt+right` | **Wider** | Increase sidebar column width (+4 columns) |
+| `ctrl+shift+left` / `alt+left` | **Narrower** | Decrease sidebar column width (-4 columns) |
 
 ---
 

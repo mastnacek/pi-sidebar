@@ -431,7 +431,16 @@ export class SidebarComponent implements Component {
 		}
 
 		// =========================================================================
-		// Branding Footer with Herdr-style collapse indicator
+		// Permanent Shortcut Hints Section
+		// =========================================================================
+		bottomLines.push(header("SHORTCUTS"));
+		bottomLines.push(dim("⌨️ ctrl+shift+b  « toggle"));
+		bottomLines.push(dim("⌨️ ctrl+shift+→  wider"));
+		bottomLines.push(dim("⌨️ ctrl+shift+←  narrow"));
+		bottomLines.push("");
+
+		// =========================================================================
+		// Branding Footer
 		// =========================================================================
 		let brandingText = "• OpenCode 1.18.26";
 		if (config.branding === "pi") {
@@ -439,16 +448,7 @@ export class SidebarComponent implements Component {
 		} else if (config.branding === "custom" && config.customBrandingText) {
 			brandingText = `• ${config.customBrandingText}`;
 		}
-
-		const brandStr = success(brandingText);
-		const collapseHint = dim("«");
-		const spaceAvail =
-			innerWidth - visibleWidth(brandingText) - visibleWidth("«");
-		const footerLine =
-			spaceAvail > 1
-				? brandStr + " ".repeat(spaceAvail) + collapseHint
-				: brandStr;
-		bottomLines.push(footerLine);
+		bottomLines.push(success(brandingText));
 
 		// =========================================================================
 		// Assemble Vertical Layout
