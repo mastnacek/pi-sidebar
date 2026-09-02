@@ -316,55 +316,79 @@ export class SidebarComponent implements Component {
 				}
 			}
 
-			// 6. Optional Extension Statuses (toggled via /sidebar extensions on|off)
+			// Partition extension statuses from footerData into MCP, LSP, and other Extensions
 			const globalFooter = (
 				globalThis as {
 					__pi_footer_data?: FooterDataProviderLike;
 				}
 			).__pi_footer_data;
 			const activeFooterData = this.footerData ?? globalFooter ?? null;
-			if (config.showExtensions && activeFooterData) {
-				const extMap =
-					typeof activeFooterData.getExtensionStatuses === "function"
-						? activeFooterData.getExtensionStatuses()
-						: null;
-				if (extMap && extMap.size > 0) {
-					topLines.push(header("ROZŠÍŘENÍ", "🧩"));
-					for (const [key, rawVal] of Array.from(extMap.entries()).sort(([a], [b]) =>
-						a.localeCompare(b),
-					)) {
-						if (!rawVal) continue;
-						const cleaned = cleanStatusText(rawVal);
-						if (!cleaned) continue;
+			const extMap = activeFooterData?.getExtensionStatuses
+				? activeFooterData.getExtensionStatuses()
+				: null;
 
-						let fullItem = cleaned;
-						const hasIcon =
-							/^(\p{Extended_Pictographic}|[•🌿📊📁🛡️🤖⚡🔊🌐📋💰🏷️📦🎯│])/u.test(
-								cleaned,
-							);
-						if (!hasIcon) {
-							let prefix = "• ";
-							if (key.includes("translate")) prefix = "🌐 ";
-							else if (key.includes("spai")) prefix = "📋 ";
-							else if (key.includes("radar") || key.includes("adr")) prefix = "🛡️ ";
-							else if (key.includes("subagent")) prefix = "🤖 ";
-							else if (key.includes("lsp")) prefix = "⚡ ";
-							else if (key.includes("proj")) prefix = "📁 ";
-							else if (key.includes("tts") || key.includes("sound")) prefix = "🔊 ";
-							fullItem = `${prefix}${cleaned}`;
-						}
+			const mcpEntries: Array<[string, string]> = [];
+			const lspEntries: Array<[string, string]> = [];
+			const otherExtEntries: Array<[string, string]> = [];
 
-						for (const wrapped of this.wrapText(fullItem, innerWidth)) {
-							topLines.push(muted(wrapped));
-						}
+			if (extMap && extMap.size > 0) {
+				for (const [key, rawVal] of extMap.entries()) {
+					if (!rawVal) continue;
+					const lowerKey = key.toLowerCase();
+					const lowerVal = rawVal.toLowerCase();
+
+					if (lowerKey.includes("mcp") || lowerVal.includes("mcp:")) {
+						mcpEntries.push([key, rawVal]);
+					} else if (
+						lowerKey.includes("lsp") ||
+						lowerKey.includes("lens") ||
+						lowerVal.includes("lsp")
+					) {
+						lspEntries.push([key, rawVal]);
+					} else {
+						otherExtEntries.push([key, rawVal]);
 					}
-					topLines.push("");
 				}
 			}
 
-			// 7. LSP & Tools Section
+			// 6. Dedicated MCP Section
+			if (config.showMcp) {
+				topLines.push(header("MCP", "🔌"));
+				if (mcpEntries.length > 0) {
+					for (const [, rawVal] of mcpEntries) {
+						const cleaned = cleanStatusText(rawVal);
+						if (!cleaned) continue;
+						const item = cleaned.replace(/^(🔌\s*)?mcp:\s*/i, "🔌 ");
+						for (const wrapped of this.wrapText(item, innerWidth)) {
+							topLines.push(success(wrapped));
+						}
+					}
+				} else {
+					let activeTools: string[] = [];
+					try {
+						activeTools = this.pi.getActiveTools();
+					} catch {
+						// Non-fatal
+					}
+					const mcpTools = activeTools.filter(
+						(t) =>
+							t.startsWith("mcp_") ||
+							t.startsWith("mcp__") ||
+							t.startsWith("knowledge_base") ||
+							t.startsWith("lotusscript_lsp"),
+					);
+					if (mcpTools.length > 0) {
+						topLines.push(success(`Aktivní (${mcpTools.length} nástrojů)`));
+					} else {
+						topLines.push(muted("MCP neaktivní"));
+					}
+				}
+				topLines.push("");
+			}
+
+			// 7. Dedicated LSP Section
 			if (config.showLsp) {
-				topLines.push(header("NÁSTROJE / LSP", "⚡"));
+				topLines.push(header("LSP", "⚡"));
 				let activeTools: string[] = [];
 				try {
 					activeTools = this.pi.getActiveTools();
@@ -380,10 +404,61 @@ export class SidebarComponent implements Component {
 					);
 				});
 
-				if (lspTools.length > 0) {
-					topLines.push(success(`Aktivní (${lspTools.length} nástrojů)`));
-				} else {
-					topLines.push(muted("LSP neaktivní"));
+				let hasActiveLspStatus = false;
+				if (lspEntries.length > 0) {
+					for (const [, rawVal] of lspEntries) {
+						const cleaned = cleanStatusText(rawVal);
+						if (!cleaned || /lsp inactive/i.test(cleaned)) continue;
+						hasActiveLspStatus = true;
+						for (const wrapped of this.wrapText(cleaned, innerWidth)) {
+							topLines.push(success(wrapped));
+						}
+					}
+				}
+
+				if (!hasActiveLspStatus) {
+					if (lspTools.length > 0) {
+						topLines.push(success(`Aktivní (${lspTools.length} nástrojů)`));
+					} else {
+						topLines.push(muted("LSP neaktivní"));
+					}
+				}
+				topLines.push("");
+			}
+
+			// 8. Remaining Extension Statuses (toggled via /sidebar extensions on|off)
+			if (config.showExtensions && otherExtEntries.length > 0) {
+				topLines.push(header("ROZŠÍŘENÍ", "🧩"));
+				for (const [key, rawVal] of otherExtEntries.sort(([a], [b]) =>
+					a.localeCompare(b),
+				)) {
+					const cleaned = cleanStatusText(rawVal);
+					if (!cleaned) continue;
+
+					let fullItem = cleaned;
+					const hasIcon =
+						/^(\p{Extended_Pictographic}|[•🌿📊📁🛡️🤖⚡🔊🌐📋💰🏷️📦🎯│⇄..])/u.test(
+							cleaned,
+						);
+					if (!hasIcon) {
+						let prefix = "• ";
+						if (key.includes("translate")) prefix = "🌐 ";
+						else if (key.includes("spai")) prefix = "📋 ";
+						else if (key.includes("radar") || key.includes("adr")) prefix = "🛡️ ";
+						else if (
+							key.includes("subagent") ||
+							key.includes("council") ||
+							key.includes("apple")
+						)
+							prefix = "🤖 ";
+						else if (key.includes("proj")) prefix = "📁 ";
+						else if (key.includes("tts") || key.includes("sound")) prefix = "🔊 ";
+						fullItem = `${prefix}${cleaned}`;
+					}
+
+					for (const wrapped of this.wrapText(fullItem, innerWidth)) {
+						topLines.push(muted(wrapped));
+					}
 				}
 				topLines.push("");
 			}

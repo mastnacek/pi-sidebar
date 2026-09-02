@@ -24,8 +24,9 @@ test("DEFAULT_CONFIG has valid OpenCode defaults", () => {
 	assert.equal(DEFAULT_CONFIG.showModel, true);
 	assert.equal(DEFAULT_CONFIG.showQuota, true);
 	assert.equal(DEFAULT_CONFIG.showCache, true);
-	assert.equal(DEFAULT_CONFIG.showExtensions, false);
+	assert.equal(DEFAULT_CONFIG.showMcp, true);
 	assert.equal(DEFAULT_CONFIG.showLsp, true);
+	assert.equal(DEFAULT_CONFIG.showExtensions, true);
 	assert.equal(DEFAULT_CONFIG.showGit, true);
 });
 

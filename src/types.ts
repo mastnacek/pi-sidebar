@@ -20,8 +20,9 @@ export interface SidebarConfig {
 	showContext: boolean;
 	showCache: boolean;
 	showQuota: boolean;
-	showExtensions: boolean;
+	showMcp: boolean;
 	showLsp: boolean;
+	showExtensions: boolean;
 	showGit: boolean;
 }
 

@@ -28,6 +28,8 @@ const COMMAND_DOCS: Record<string, string> = {
 	wider: "zvětšit šířku panelu (+4 sloupce, ctrl+shift+→)",
 	narrower: "zmenšit šířku panelu (-4 sloupce, ctrl+shift+←)",
 	scroll: "posunout obsah panelu (up | down | top | bottom)",
+	mcp: "přepnout zobrazení MCP serverů v panelu (on | off | toggle)",
+	lsp: "přepnout zobrazení LSP stavu v panelu (on | off | toggle)",
 	extensions: "přepnout zobrazení rozšíření v panelu (on | off | toggle)",
 	width: "nastavit přesnou šířku panelu v sloupcích (16-60)",
 	resize: "upravit šířku panelu (+N nebo -N)",
@@ -78,22 +80,27 @@ export function registerSidebarCommands(
 					return null;
 				}
 
-				if (cmd === "extensions" || cmd === "statusline") {
+				if (
+					cmd === "extensions" ||
+					cmd === "statusline" ||
+					cmd === "mcp" ||
+					cmd === "lsp"
+				) {
 					const extOptions = [
 						{
 							value: `${cmd} on`,
 							label: `${cmd} on`,
-							description: "Zobrazovat stav rozšíření v postranním panelu",
+							description: `Zapnout sekci ${cmd.toUpperCase()} v postranním panelu`,
 						},
 						{
 							value: `${cmd} off`,
 							label: `${cmd} off`,
-							description: "Skrýt rozšíření z postranního panelu",
+							description: `Skrýt sekci ${cmd.toUpperCase()} z postranního panelu`,
 						},
 						{
 							value: `${cmd} toggle`,
 							label: `${cmd} toggle`,
-							description: "Přepnout zobrazení rozšíření v panelu",
+							description: `Přepnout sekci ${cmd.toUpperCase()} v panelu`,
 						},
 					];
 					const filtered = extOptions.filter((i) =>
@@ -289,7 +296,9 @@ export function registerSidebarCommands(
 					"  /sidebar on|off|toggle     — Zapnout / vypnout / přepnout panel",
 					"  /sidebar collapse|expand   — Explicitně sbalit nebo rozbalit",
 					"  /sidebar scroll <up|down|top|bottom> [řádky] — Posunout zobrazení panelu",
-					"  /sidebar extensions on|off — Zobrazit/skrýt rozšíření v postranním panelu",
+					"  /sidebar mcp on|off        — Zobrazit/skrýt sekci MCP serverů v panelu",
+					"  /sidebar lsp on|off        — Zobrazit/skrýt sekci LSP stavu v panelu",
+					"  /sidebar extensions on|off — Zobrazit/skrýt ostatní rozšíření v panelu",
 					"  /sidebar wider [delta]     — Zvětšit šířku panelu (výchozí: +4)",
 					"  /sidebar narrower [delta]  — Zmenšit šířku panelu (výchozí: -4)",
 					"  /sidebar width <16-60>     — Nastavit přesnou šířku panelu (výchozí: 28)",
@@ -339,6 +348,42 @@ export function registerSidebarCommands(
 						"info",
 					);
 					break;
+
+				case "mcp": {
+					const val = value.toLowerCase();
+					if (val === "on" || val === "true" || val === "show") {
+						nextConfig.showMcp = true;
+						ctx.ui.notify("Sekce MCP v panelu: ZAPNUTO", "info");
+					} else if (val === "off" || val === "false" || val === "hide") {
+						nextConfig.showMcp = false;
+						ctx.ui.notify("Sekce MCP v panelu: VYPNUTO", "info");
+					} else {
+						nextConfig.showMcp = !current.showMcp;
+						ctx.ui.notify(
+							`Sekce MCP v panelu: ${nextConfig.showMcp ? "ZAPNUTO" : "VYPNUTO"}`,
+							"info",
+						);
+					}
+					break;
+				}
+
+				case "lsp": {
+					const val = value.toLowerCase();
+					if (val === "on" || val === "true" || val === "show") {
+						nextConfig.showLsp = true;
+						ctx.ui.notify("Sekce LSP v panelu: ZAPNUTO", "info");
+					} else if (val === "off" || val === "false" || val === "hide") {
+						nextConfig.showLsp = false;
+						ctx.ui.notify("Sekce LSP v panelu: VYPNUTO", "info");
+					} else {
+						nextConfig.showLsp = !current.showLsp;
+						ctx.ui.notify(
+							`Sekce LSP v panelu: ${nextConfig.showLsp ? "ZAPNUTO" : "VYPNUTO"}`,
+							"info",
+						);
+					}
+					break;
+				}
 
 				case "extensions":
 				case "statusline": {

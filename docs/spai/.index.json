@@ -1,5 +1,16 @@
 {
   "version": 1,
-  "lastUpdated": "2026-09-02 11:52:23",
-  "records": []
+  "lastUpdated": "2026-09-02 13:30:44",
+  "records": [
+    {
+      "id": "SPAI-001",
+      "title": "T Doladit sidebar aby se lépe strukturoval a šel posouvat nahoru a do stran",
+      "type": "Todo",
+      "status": "working",
+      "symbol": "/",
+      "timestamp": "2026-09-02 13:30:44",
+      "tags": [],
+      "file": "2026-09-02-SPAI-001-t-doladit-sidebar-aby-se-lepe-strukturoval-a-sel-p.md"
+    }
+  ]
 }
