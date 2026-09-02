@@ -20,11 +20,15 @@ import type {
 } from "./types.js";
 
 const COMMAND_DOCS: Record<string, string> = {
-	on: "enable sidebar overlay",
-	off: "disable sidebar overlay",
-	toggle: "toggle sidebar visibility",
-	status: "display current sidebar configuration and metrics",
+	on: "expand / enable sidebar overlay",
+	off: "collapse / disable sidebar overlay",
+	toggle: "toggle collapse / expand sidebar (ctrl+shift+b)",
+	collapse: "collapse sidebar overlay",
+	expand: "expand sidebar overlay",
+	wider: "increase sidebar width (+4 cols, alt+])",
+	narrower: "decrease sidebar width (-4 cols, alt+[)",
 	width: "set sidebar column width (16-60)",
+	resize: "adjust sidebar width (+N or -N)",
 	preset: "switch content preset (opencode | compact | detailed)",
 	refresh: "refresh provider quota meters (Kimi & Z.ai)",
 	branding: "switch branding text (opencode | pi | custom)",
@@ -38,7 +42,7 @@ export function registerSidebarCommands(
 	onConfigChanged: (config: SidebarConfig, ctx: ExtensionContext) => void,
 ): void {
 	pi.registerCommand("sidebar", {
-		description: "OpenCode-style sidebar overlay controller",
+		description: "Resizable & collapsible sidebar overlay controller",
 		getArgumentCompletions: async (
 			prefix: string,
 		): Promise<AutocompleteItem[] | null> => {
@@ -51,33 +55,43 @@ export function registerSidebarCommands(
 				const cmd = (tokens[0] ?? "").toLowerCase();
 
 				if (
-					["on", "off", "toggle", "status", "refresh", "reset", "help"].includes(
-						cmd,
-					)
+					[
+						"on",
+						"off",
+						"toggle",
+						"collapse",
+						"expand",
+						"wider",
+						"narrower",
+						"status",
+						"refresh",
+						"reset",
+						"help",
+					].includes(cmd)
 				) {
 					return null;
 				}
 
-				if (cmd === "width") {
+				if (cmd === "width" || cmd === "resize") {
 					const widths = [
 						{
-							value: "width 24",
-							label: "width 24",
+							value: `${cmd} 24`,
+							label: `${cmd} 24`,
 							description: "Compact width (24 cols)",
 						},
 						{
-							value: "width 28",
-							label: "width 28",
-							description: "Default OpenCode width (28 cols)",
+							value: `${cmd} 28`,
+							label: `${cmd} 28`,
+							description: "Default width (28 cols)",
 						},
 						{
-							value: "width 32",
-							label: "width 32",
+							value: `${cmd} 32`,
+							label: `${cmd} 32`,
 							description: "Standard width (32 cols)",
 						},
 						{
-							value: "width 36",
-							label: "width 36",
+							value: `${cmd} 36`,
+							label: `${cmd} 36`,
 							description: "Spacious width (36 cols)",
 						},
 					];
@@ -200,22 +214,28 @@ export function registerSidebarCommands(
 			) {
 				const cfg = getActiveConfig();
 				const helpText = [
-					"# /sidebar — OpenCode & Detailed Sidebar Reference",
-					"Right-hand sidebar overlay with OpenCode, Compact, and Detailed presets.",
+					"# /sidebar — Resizable & Collapsible Sidebar Controller",
+					"Docked right-hand sidebar with dynamic resizing and quick collapse.",
+					"",
+					"### Controls & Shortcuts:",
+					"  ctrl+shift+b               — Toggle collapse / expand («)",
+					"  alt+] / alt+[              — Resize width wider / narrower (±4 cols)",
 					"",
 					"### Commands:",
-					"  /sidebar on|off|toggle     — Toggle sidebar visibility",
-					"  /sidebar status            — Show active configuration & metrics",
+					"  /sidebar on|off|toggle     — Toggle collapse / expand",
+					"  /sidebar collapse|expand   — Explicit collapse or expand",
+					"  /sidebar wider [delta]     — Increase column width (default: +4)",
+					"  /sidebar narrower [delta]  — Decrease column width (default: -4)",
+					"  /sidebar width <16-60>     — Set exact column width (default: 28)",
 					"  /sidebar preset <name>     — Switch preset (opencode | compact | detailed)",
 					"  /sidebar refresh           — Force refresh Kimi and Z.ai quotas",
-					"  /sidebar width <16-60>     — Adjust column width (default: 28)",
 					"  /sidebar branding <type>   — Switch footer branding (opencode | pi | custom <text>)",
 					"  /sidebar border <style>    — Set border style (line | double | dotted | space | none)",
 					"  /sidebar reset             — Reset to defaults",
 					"  /sidebar help              — Show this help banner",
 					"",
 					"### Current State:",
-					`  • Status: ${cfg.enabled ? "Enabled" : "Disabled"}`,
+					`  • Status: ${cfg.enabled ? "Expanded" : "Collapsed («)"}`,
 					`  • Width: ${cfg.width} cols (min terminal: ${cfg.minTerminalWidth} cols)`,
 					`  • Preset: ${cfg.preset} | Branding: ${cfg.branding} | Border: ${cfg.borderStyle}`,
 					"",
@@ -231,31 +251,76 @@ export function registerSidebarCommands(
 
 			switch (subcommand) {
 				case "on":
+				case "expand":
 					nextConfig.enabled = true;
-					ctx.ui.notify("Sidebar overlay enabled", "info");
+					ctx.ui.notify(`Sidebar expanded (${nextConfig.width} cols)`, "info");
 					break;
 
 				case "off":
+				case "collapse":
 					nextConfig.enabled = false;
-					ctx.ui.notify("Sidebar overlay disabled", "info");
+					ctx.ui.notify("Sidebar collapsed («)", "info");
 					break;
 
 				case "toggle":
 					nextConfig.enabled = !current.enabled;
 					ctx.ui.notify(
-						`Sidebar overlay ${nextConfig.enabled ? "enabled" : "disabled"}`,
+						`Sidebar ${nextConfig.enabled ? `expanded (${nextConfig.width} cols)` : "collapsed («)"}`,
 						"info",
 					);
 					break;
 
 				case "status": {
 					const msg = [
-						`Sidebar: ${current.enabled ? "ENABLED" : "DISABLED"}`,
+						`Sidebar: ${current.enabled ? "EXPANDED" : "COLLAPSED («)"}`,
 						`Width: ${current.width} cols | Min Term Width: ${current.minTerminalWidth}`,
 						`Preset: ${current.preset} | Branding: ${current.branding} | Border: ${current.borderStyle}`,
 					].join(" | ");
 					ctx.ui.notify(msg, "info");
 					return;
+				}
+
+				case "wider": {
+					const delta = Number.parseInt(value, 10) || 4;
+					const newW = Math.min(60, current.width + Math.abs(delta));
+					nextConfig.width = newW;
+					nextConfig.enabled = true;
+					ctx.ui.notify(`Sidebar width: ${newW} cols (+${newW - current.width})`, "info");
+					break;
+				}
+
+				case "narrower": {
+					const delta = Number.parseInt(value, 10) || 4;
+					const newW = Math.max(16, current.width - Math.abs(delta));
+					nextConfig.width = newW;
+					nextConfig.enabled = true;
+					ctx.ui.notify(`Sidebar width: ${newW} cols (-${current.width - newW})`, "info");
+					break;
+				}
+
+				case "resize": {
+					if (value.startsWith("+") || value.startsWith("-")) {
+						const delta = Number.parseInt(value, 10);
+						if (!Number.isNaN(delta)) {
+							const newW = Math.max(16, Math.min(60, current.width + delta));
+							nextConfig.width = newW;
+							nextConfig.enabled = true;
+							ctx.ui.notify(`Sidebar width: ${newW} cols`, "info");
+							break;
+						}
+					}
+					const num = Number.parseInt(value, 10);
+					if (Number.isNaN(num) || num < 16 || num > 60) {
+						ctx.ui.notify(
+							"Width must be between 16 and 60 columns. (e.g. /sidebar resize +4 or /sidebar resize 32)",
+							"warning",
+						);
+						return;
+					}
+					nextConfig.width = num;
+					nextConfig.enabled = true;
+					ctx.ui.notify(`Sidebar width: ${num} cols`, "info");
+					break;
 				}
 
 				case "refresh": {
@@ -275,6 +340,7 @@ export function registerSidebarCommands(
 						return;
 					}
 					nextConfig.width = num;
+					nextConfig.enabled = true;
 					ctx.ui.notify(`Sidebar width set to ${num} columns`, "info");
 					break;
 				}

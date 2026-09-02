@@ -197,13 +197,11 @@ export class SidebarComponent implements Component {
 				const barW = Math.max(6, Math.min(10, innerWidth - 6));
 				const autoStr = isAutoCompactEnabled(this.ctx.cwd) ? " (auto)" : "";
 				const bar = ctxColor(contextBar(percentValue, barW));
-				const pctStr =
-					percentValue === null ? "?%" : `${percentValue.toFixed(1)}%`;
+				const pctStr = percentValue === null ? "?%" : `${percentValue.toFixed(1)}%`;
 				topLines.push(`${bar} ${ctxColor(pctStr)}${dim(autoStr)}`);
 
 				const tokensUsed =
-					stats.contextTokens ??
-					stats.totalInputTokens + stats.totalOutputTokens;
+					stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens;
 				const windowStr = `${formatTokensCompact(tokensUsed)} / ${formatTokensCompact(stats.contextWindow)} tokens`;
 				topLines.push(muted(windowStr));
 
@@ -232,8 +230,7 @@ export class SidebarComponent implements Component {
 			if (config.showQuota) {
 				const isKimi = model?.provider === "kimi-coding";
 				const isZai =
-					model?.provider === "zai-coding-cn" ||
-					model?.provider === "zai-coding";
+					model?.provider === "zai-coding-cn" || model?.provider === "zai-coding";
 
 				const kimi = getKimiQuotas();
 				const zai = getZaiQuotas();
@@ -328,8 +325,7 @@ export class SidebarComponent implements Component {
 			}
 
 			if (config.showContext) {
-				const pctStr =
-					percentValue === null ? "?%" : `${percentValue.toFixed(0)}%`;
+				const pctStr = percentValue === null ? "?%" : `${percentValue.toFixed(0)}%`;
 				const costStr = `$${(stats.totalCost || 0).toFixed(2)}`;
 				topLines.push(
 					`${ctxColor(pctStr)} ${dim("│")} ${warning(costStr)} ${dim("│")} ${muted(formatTokensCompact(stats.totalInputTokens + stats.totalOutputTokens))}`,
@@ -360,8 +356,7 @@ export class SidebarComponent implements Component {
 				topLines.push(accent("Context"));
 
 				const tokensStr = formatTokens(
-					stats.contextTokens ??
-						stats.totalInputTokens + stats.totalOutputTokens,
+					stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens,
 				);
 				topLines.push(muted(tokensStr));
 
@@ -436,7 +431,7 @@ export class SidebarComponent implements Component {
 		}
 
 		// =========================================================================
-		// Branding Footer
+		// Branding Footer with Herdr-style collapse indicator
 		// =========================================================================
 		let brandingText = "• OpenCode 1.18.26";
 		if (config.branding === "pi") {
@@ -444,7 +439,16 @@ export class SidebarComponent implements Component {
 		} else if (config.branding === "custom" && config.customBrandingText) {
 			brandingText = `• ${config.customBrandingText}`;
 		}
-		bottomLines.push(success(brandingText));
+
+		const brandStr = success(brandingText);
+		const collapseHint = dim("«");
+		const spaceAvail =
+			innerWidth - visibleWidth(brandingText) - visibleWidth("«");
+		const footerLine =
+			spaceAvail > 1
+				? brandStr + " ".repeat(spaceAvail) + collapseHint
+				: brandStr;
+		bottomLines.push(footerLine);
 
 		// =========================================================================
 		// Assemble Vertical Layout

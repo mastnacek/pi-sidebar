@@ -110,7 +110,22 @@ export default function (pi: ExtensionAPI): void {
 		if (currentTui && currentTheme) {
 			applySidebar(currentTui, ctx, currentTheme, next);
 		}
-		ctx.ui.notify(`Sidebar ${next.enabled ? "enabled" : "disabled"}`, "info");
+		ctx.ui.notify(
+			`Sidebar ${next.enabled ? `expanded (${next.width} cols)` : "collapsed («)"}`,
+			"info",
+		);
+	}
+
+	function resizeSidebar(delta: number, ctx: ExtensionContext): void {
+		const current = getActiveConfig();
+		const newWidth = Math.max(16, Math.min(60, current.width + delta));
+		const next: SidebarConfig = { ...current, width: newWidth, enabled: true };
+		setActiveConfig(next);
+		pi.appendEntry(CONFIG_ENTRY_TYPE, next);
+		if (currentTui && currentTheme) {
+			applySidebar(currentTui, ctx, currentTheme, next);
+		}
+		ctx.ui.notify(`Sidebar width: ${newWidth} cols`, "info");
 	}
 
 	// 1. Session start lifecycle hook
@@ -161,11 +176,25 @@ export default function (pi: ExtensionAPI): void {
 		currentTui = null;
 	});
 
-	// 4. Keyboard shortcut toggle (matches OpenCode sidebar toggle)
+	// 4. Keyboard shortcuts for collapsing and resizing
 	pi.registerShortcut("ctrl+shift+b", {
-		description: "Toggle OpenCode sidebar overlay",
+		description: "Toggle collapse / expand sidebar («)",
 		handler: (ctx) => {
 			toggleSidebar(ctx);
+		},
+	});
+
+	pi.registerShortcut("alt+]", {
+		description: "Increase sidebar width (+4 cols)",
+		handler: (ctx) => {
+			resizeSidebar(4, ctx);
+		},
+	});
+
+	pi.registerShortcut("alt+[", {
+		description: "Decrease sidebar width (-4 cols)",
+		handler: (ctx) => {
+			resizeSidebar(-4, ctx);
 		},
 	});
 

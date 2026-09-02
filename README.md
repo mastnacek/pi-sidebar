@@ -1,17 +1,21 @@
 # pi-sidebar
 
-OpenCode-style right sidebar overlay extension for the [Pi coding agent](https://github.com/earendil-works/pi-mono).
+OpenCode & Herdr-inspired right sidebar overlay extension for the [Pi coding agent](https://github.com/earendil-works/pi-mono).
 
-Provides an elegant, non-intrusive vertical sidebar docked to the right edge of the terminal, displaying live session metadata, context tokens, cumulative cost, active LSP tools, git workspace details, and provider quota meters.
+Provides an elegant, non-intrusive vertical sidebar docked to the right edge of the terminal, featuring **dynamic resizing**, **quick collapse**, live session metadata, context tokens, cumulative cost, active LSP tools, git workspace details, and provider quota meters.
 
 ---
 
 ## Features
 
+- **Resizable & Collapsible (Herdr-Style)**:
+  - Quick toggle collapse/expand via `ctrl+shift+b` or `/sidebar toggle`.
+  - Herdr-style collapse badge (`«`) in the bottom-right corner.
+  - On-the-fly resizing via `alt+]` (wider +4) and `alt+[` (narrower -4) or `/sidebar wider` / `/sidebar narrower`.
 - **OpenCode Visual Fidelity & Rich Presets**:
-  - `opencode`: Exact layout matching classic OpenCode sidebar.
-  - `compact`: Space-saving vertical layout.
-  - `detailed`: Full multi-section dashboard replicating the rich telemetry from `eldritch-footer` (Model & thinking levels, context progress bar, cache hit rates, token breakdown, and live Kimi / Z.ai quota meters).
+  - `opencode`: Classic OpenCode sidebar layout.
+  - `compact`: Minimal vertical line layout.
+  - `detailed`: Full telemetry dashboard (Model & thinking levels with emojis, context progress bar, cache hit rates, token breakdown, and live Kimi / Z.ai quota meters).
 - **Top Session Banner**: Shows timestamp (`New session • HH:mm`) or active session title.
 - **Model & Reasoning Telemetry**: Displays model ID, provider, and active thinking level emoji (`💤`, `🔹`, `🧊`, `⚡`, `🧠`, `🔥`, `🌋`).
 - **Real-Time Context & Cost Meter**:
@@ -28,34 +32,20 @@ Provides an elegant, non-intrusive vertical sidebar docked to the right edge of 
 - **Bottom Workspace & Git Dock**:
   - Formatted project path with active git branch (`/D:\path\to\project:main`)
   - Status indicators (`● dirty` / `○ clean`, `▸ahead`, `◂behind`)
-  - Configurable branding footer (`• OpenCode 1.18.26` or `• Pi Agent v0.84.4`)
+  - Configurable branding footer (`• OpenCode 1.18.26` or `• Pi Agent v0.84.4`) with `«` collapse indicator.
 - **Non-Capturing Overlay**: Rendered via Pi's native overlay system (`nonCapturing: true`) with zero impact on editor typing, keybindings, or cursor responsiveness.
-- **Editor Boundary Wrapping**: Dynamically bounds the text input editor width so prompts stop before the sidebar boundary.
+- **Editor Boundary Wrapping**: Dynamically bounds the text input editor width so prompts stop before the sidebar boundary. When collapsed, input editor expands to full width.
 - **Responsive Layout**: Automatically hides when the terminal window width is narrower than the configured threshold (default 80 columns).
 
 ---
 
-## Coexisting with `eldritch-footer`
+## Keyboard Shortcuts
 
-When using `pi-sidebar` with the `detailed` preset, all telemetry previously in `eldritch-footer` moves to the right sidebar. You can configure `eldritch-footer` accordingly:
-
-1. **Clean 1-Line Footer**: Keep a minimal single-line statusbar at the bottom while viewing full metrics in the sidebar:
-
-   ```text
-   /footer minimal --global
-   ```
-
-2. **Disable Footer Entirely**: Move all stats exclusively to the sidebar:
-
-   ```text
-   /footer off --global
-   ```
-
-3. **Switch Sidebar to Detailed Mode**:
-
-   ```text
-   /sidebar preset detailed --global
-   ```
+| Shortcut | Action | Description |
+| --- | --- | --- |
+| `ctrl+shift+b` | **Toggle Collapse** | Collapse (`«`) or expand sidebar overlay |
+| `alt+]` | **Wider** | Increase sidebar column width (+4 columns) |
+| `alt+[` | **Narrower** | Decrease sidebar column width (-4 columns) |
 
 ---
 
@@ -64,11 +54,13 @@ When using `pi-sidebar` with the `detailed` preset, all telemetry previously in 
 Control the sidebar at any time using the `/sidebar` slash command:
 
 ```text
-/sidebar on|off|toggle     — Toggle sidebar visibility
-/sidebar status            — Show active configuration & metrics
+/sidebar on|off|toggle     — Toggle collapse / expand
+/sidebar collapse|expand   — Explicitly collapse or expand
+/sidebar wider [delta]     — Increase column width (default: +4)
+/sidebar narrower [delta]  — Decrease column width (default: -4)
+/sidebar width <16-60>     — Set exact column width (default: 28)
 /sidebar preset <name>     — Switch layout preset (opencode | compact | detailed)
 /sidebar refresh           — Force refresh Kimi and Z.ai quota meters
-/sidebar width <16-60>     — Adjust column width (default: 28)
 /sidebar branding <type>   — Switch branding footer (opencode | pi | custom <text>)
 /sidebar border <style>    — Set border style (line | double | dotted | space | none)
 /sidebar reset             — Reset settings to default
