@@ -317,8 +317,17 @@ export class SidebarComponent implements Component {
 			}
 
 			// 6. Optional Extension Statuses (toggled via /sidebar extensions on|off)
-			if (config.showExtensions && this.footerData) {
-				const extMap = this.footerData.getExtensionStatuses();
+			const globalFooter = (
+				globalThis as {
+					__pi_footer_data?: FooterDataProviderLike;
+				}
+			).__pi_footer_data;
+			const activeFooterData = this.footerData ?? globalFooter ?? null;
+			if (config.showExtensions && activeFooterData) {
+				const extMap =
+					typeof activeFooterData.getExtensionStatuses === "function"
+						? activeFooterData.getExtensionStatuses()
+						: null;
 				if (extMap && extMap.size > 0) {
 					topLines.push(header("ROZŠÍŘENÍ", "🧩"));
 					for (const [key, rawVal] of Array.from(extMap.entries()).sort(([a], [b]) =>
@@ -329,9 +338,10 @@ export class SidebarComponent implements Component {
 						if (!cleaned) continue;
 
 						let fullItem = cleaned;
-						const hasIcon = /^(\p{Extended_Pictographic}|[•🌿📊📁🛡️🤖⚡🔊🌐📋💰🏷️📦🎯│])/u.test(
-							cleaned,
-						);
+						const hasIcon =
+							/^(\p{Extended_Pictographic}|[•🌿📊📁🛡️🤖⚡🔊🌐📋💰🏷️📦🎯│])/u.test(
+								cleaned,
+							);
 						if (!hasIcon) {
 							let prefix = "• ";
 							if (key.includes("translate")) prefix = "🌐 ";
