@@ -1,8 +1,22 @@
-import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
-import { type Component, type TUI, sliceByColumn, visibleWidth } from "@earendil-works/pi-tui";
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+	Theme,
+} from "@earendil-works/pi-coding-agent";
+import {
+	type Component,
+	type TUI,
+	sliceByColumn,
+	visibleWidth,
+} from "@earendil-works/pi-tui";
 import { getActiveConfig } from "./config.js";
 import { formatProjectPath, getGitInfo } from "./git.js";
-import { formatCost, formatPercent, formatTokens, getSessionStats } from "./stats.js";
+import {
+	formatCost,
+	formatPercent,
+	formatTokens,
+	getSessionStats,
+} from "./stats.js";
 
 const BORDER_CHARS = {
 	line: "│ ",
@@ -61,9 +75,19 @@ export class SidebarComponent implements Component {
 			let foundBreak = false;
 
 			// Look backwards from maxWidth for good break points: \, /, :, -, _, space
-			for (let i = Math.min(current.length, maxWidth); i > Math.max(1, maxWidth - 10); i--) {
+			for (
+				let i = Math.min(current.length, maxWidth);
+				i > Math.max(1, maxWidth - 10);
+				i--
+			) {
 				const char = current[i - 1];
-				if (char === "\\" || char === "/" || char === ":" || char === " " || char === "-") {
+				if (
+					char === "\\" ||
+					char === "/" ||
+					char === ":" ||
+					char === " " ||
+					char === "-"
+				) {
 					sliceLen = i;
 					foundBreak = true;
 					break;
@@ -101,7 +125,9 @@ export class SidebarComponent implements Component {
 		// ================= 1. Top Section: Session =================
 		if (config.showSession) {
 			const sessionName = this.ctx.sessionManager.getSessionName();
-			const sessionTitle = sessionName ? `Session - ${sessionName}` : `New session - ${this.sessionStartIso}`;
+			const sessionTitle = sessionName
+				? `Session - ${sessionName}`
+				: `New session - ${this.sessionStartIso}`;
 			const wrappedSession = this.wrapText(sessionTitle, innerWidth);
 			for (const line of wrappedSession) {
 				topLines.push(muted(line));
@@ -114,7 +140,9 @@ export class SidebarComponent implements Component {
 			const stats = getSessionStats(this.ctx);
 			topLines.push(accent("Context"));
 
-			const tokensStr = formatTokens(stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens);
+			const tokensStr = formatTokens(
+				stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens,
+			);
 			topLines.push(muted(tokensStr));
 
 			const percentStr = formatPercent(stats.contextPercent);
@@ -139,7 +167,11 @@ export class SidebarComponent implements Component {
 
 			const lspTools = activeTools.filter((t: string) => {
 				const lower = t.toLowerCase();
-				return lower.includes("lsp") || lower.includes("lens") || lower.includes("ast_grep");
+				return (
+					lower.includes("lsp") ||
+					lower.includes("lens") ||
+					lower.includes("ast_grep")
+				);
 			});
 
 			if (lspTools.length > 0) {
@@ -185,7 +217,8 @@ export class SidebarComponent implements Component {
 
 		// Format every line with border and pad to exact width
 		return allContentLines.map((content) => {
-			const border = config.borderStyle === "none" ? "" : th.fg("border", borderPrefix);
+			const border =
+				config.borderStyle === "none" ? "" : th.fg("border", borderPrefix);
 			const lineWithoutBorder = content;
 			const lineVisWidth = visibleWidth(lineWithoutBorder);
 			const padLen = Math.max(0, innerWidth - lineVisWidth);
@@ -193,7 +226,9 @@ export class SidebarComponent implements Component {
 			const fullLine = border + paddedContent;
 
 			// Ensure line does not exceed requested width
-			return visibleWidth(fullLine) > width ? sliceByColumn(fullLine, 0, width, true) : fullLine;
+			return visibleWidth(fullLine) > width
+				? sliceByColumn(fullLine, 0, width, true)
+				: fullLine;
 		});
 	}
 }

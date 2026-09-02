@@ -1,4 +1,8 @@
-import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionCommandContext,
+	ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import {
 	CONFIG_ENTRY_TYPE,
@@ -7,7 +11,12 @@ import {
 	saveGlobalConfig,
 	setActiveConfig,
 } from "./config.js";
-import type { SidebarBorderStyle, SidebarBranding, SidebarConfig, SidebarPreset } from "./types.js";
+import type {
+	SidebarBorderStyle,
+	SidebarBranding,
+	SidebarConfig,
+	SidebarPreset,
+} from "./types.js";
 
 const COMMAND_DOCS: Record<string, string> = {
 	on: "enable sidebar overlay",
@@ -28,7 +37,9 @@ export function registerSidebarCommands(
 ): void {
 	pi.registerCommand("sidebar", {
 		description: "OpenCode-style sidebar overlay controller",
-		getArgumentCompletions: async (prefix: string): Promise<AutocompleteItem[] | null> => {
+		getArgumentCompletions: async (
+			prefix: string,
+		): Promise<AutocompleteItem[] | null> => {
 			const tokens = prefix.split(/\s+/).filter(Boolean);
 			const trailingSpace = /\s$/.test(prefix);
 			const normalizedPrefix = tokens.join(" ").toLowerCase();
@@ -43,44 +54,112 @@ export function registerSidebarCommands(
 
 				if (cmd === "width") {
 					const widths = [
-						{ value: "width 24", label: "width 24", description: "Compact width (24 cols)" },
-						{ value: "width 28", label: "width 28", description: "Default OpenCode width (28 cols)" },
-						{ value: "width 32", label: "width 32", description: "Standard width (32 cols)" },
-						{ value: "width 36", label: "width 36", description: "Spacious width (36 cols)" },
+						{
+							value: "width 24",
+							label: "width 24",
+							description: "Compact width (24 cols)",
+						},
+						{
+							value: "width 28",
+							label: "width 28",
+							description: "Default OpenCode width (28 cols)",
+						},
+						{
+							value: "width 32",
+							label: "width 32",
+							description: "Standard width (32 cols)",
+						},
+						{
+							value: "width 36",
+							label: "width 36",
+							description: "Spacious width (36 cols)",
+						},
 					];
-					const filtered = widths.filter((i) => i.value.toLowerCase().startsWith(normalizedPrefix));
+					const filtered = widths.filter((i) =>
+						i.value.toLowerCase().startsWith(normalizedPrefix),
+					);
 					return filtered.length > 0 ? filtered : null;
 				}
 
 				if (cmd === "preset") {
 					const presets = [
-						{ value: "preset opencode", label: "preset opencode", description: "Exact OpenCode layout" },
-						{ value: "preset compact", label: "preset compact", description: "Minimal compact layout" },
-						{ value: "preset detailed", label: "preset detailed", description: "Extended metrics layout" },
+						{
+							value: "preset opencode",
+							label: "preset opencode",
+							description: "Exact OpenCode layout",
+						},
+						{
+							value: "preset compact",
+							label: "preset compact",
+							description: "Minimal compact layout",
+						},
+						{
+							value: "preset detailed",
+							label: "preset detailed",
+							description: "Extended metrics layout",
+						},
 					];
-					const filtered = presets.filter((i) => i.value.toLowerCase().startsWith(normalizedPrefix));
+					const filtered = presets.filter((i) =>
+						i.value.toLowerCase().startsWith(normalizedPrefix),
+					);
 					return filtered.length > 0 ? filtered : null;
 				}
 
 				if (cmd === "branding") {
 					const brandings = [
-						{ value: "branding opencode", label: "branding opencode", description: "• OpenCode 1.18.26" },
-						{ value: "branding pi", label: "branding pi", description: "• Pi Agent v0.84.4" },
-						{ value: "branding custom", label: "branding custom", description: "Custom brand text" },
+						{
+							value: "branding opencode",
+							label: "branding opencode",
+							description: "• OpenCode 1.18.26",
+						},
+						{
+							value: "branding pi",
+							label: "branding pi",
+							description: "• Pi Agent v0.84.4",
+						},
+						{
+							value: "branding custom",
+							label: "branding custom",
+							description: "Custom brand text",
+						},
 					];
-					const filtered = brandings.filter((i) => i.value.toLowerCase().startsWith(normalizedPrefix));
+					const filtered = brandings.filter((i) =>
+						i.value.toLowerCase().startsWith(normalizedPrefix),
+					);
 					return filtered.length > 0 ? filtered : null;
 				}
 
 				if (cmd === "border") {
 					const borders = [
-						{ value: "border line", label: "border line", description: "Single vertical line (│)" },
-						{ value: "border double", label: "border double", description: "Double vertical line (║)" },
-						{ value: "border dotted", label: "border dotted", description: "Dotted line (┆)" },
-						{ value: "border space", label: "border space", description: "Space separator" },
-						{ value: "border none", label: "border none", description: "No border separator" },
+						{
+							value: "border line",
+							label: "border line",
+							description: "Single vertical line (│)",
+						},
+						{
+							value: "border double",
+							label: "border double",
+							description: "Double vertical line (║)",
+						},
+						{
+							value: "border dotted",
+							label: "border dotted",
+							description: "Dotted line (┆)",
+						},
+						{
+							value: "border space",
+							label: "border space",
+							description: "Space separator",
+						},
+						{
+							value: "border none",
+							label: "border none",
+							description: "No border separator",
+						},
 					];
-					const filtered = borders.filter((i) => i.value.toLowerCase().startsWith(normalizedPrefix));
+					const filtered = borders.filter((i) =>
+						i.value.toLowerCase().startsWith(normalizedPrefix),
+					);
 					return filtered.length > 0 ? filtered : null;
 				}
 
@@ -107,7 +186,12 @@ export function registerSidebarCommands(
 			const value = rest.join(" ").trim();
 
 			// Help reference display
-			if (!subcommand || subcommand === "help" || subcommand === "-h" || subcommand === "--help") {
+			if (
+				!subcommand ||
+				subcommand === "help" ||
+				subcommand === "-h" ||
+				subcommand === "--help"
+			) {
 				const cfg = getActiveConfig();
 				const helpText = [
 					"# /sidebar — OpenCode Sidebar Control Reference",
@@ -151,7 +235,10 @@ export function registerSidebarCommands(
 
 				case "toggle":
 					nextConfig.enabled = !current.enabled;
-					ctx.ui.notify(`Sidebar overlay ${nextConfig.enabled ? "enabled" : "disabled"}`, "info");
+					ctx.ui.notify(
+						`Sidebar overlay ${nextConfig.enabled ? "enabled" : "disabled"}`,
+						"info",
+					);
 					break;
 
 				case "status": {
@@ -167,7 +254,10 @@ export function registerSidebarCommands(
 				case "width": {
 					const num = Number.parseInt(value, 10);
 					if (Number.isNaN(num) || num < 16 || num > 60) {
-						ctx.ui.notify("Width must be a number between 16 and 60 columns. (e.g. /sidebar width 28)", "warning");
+						ctx.ui.notify(
+							"Width must be a number between 16 and 60 columns. (e.g. /sidebar width 28)",
+							"warning",
+						);
 						return;
 					}
 					nextConfig.width = num;
@@ -178,7 +268,10 @@ export function registerSidebarCommands(
 				case "preset": {
 					const p = value.toLowerCase() as SidebarPreset;
 					if (!["opencode", "compact", "detailed"].includes(p)) {
-						ctx.ui.notify("Invalid preset. Choose: opencode, compact, or detailed", "warning");
+						ctx.ui.notify(
+							"Invalid preset. Choose: opencode, compact, or detailed",
+							"warning",
+						);
 						return;
 					}
 					nextConfig.preset = p;
@@ -190,7 +283,10 @@ export function registerSidebarCommands(
 					const parts = value.split(/\s+/);
 					const brandType = (parts[0] ?? "").toLowerCase() as SidebarBranding;
 					if (!["opencode", "pi", "custom"].includes(brandType)) {
-						ctx.ui.notify("Invalid branding. Choose: opencode, pi, or custom <text>", "warning");
+						ctx.ui.notify(
+							"Invalid branding. Choose: opencode, pi, or custom <text>",
+							"warning",
+						);
 						return;
 					}
 					nextConfig.branding = brandType;
@@ -204,7 +300,10 @@ export function registerSidebarCommands(
 				case "border": {
 					const b = value.toLowerCase() as SidebarBorderStyle;
 					if (!["line", "double", "dotted", "space", "none"].includes(b)) {
-						ctx.ui.notify("Invalid border style. Choose: line, double, dotted, space, none", "warning");
+						ctx.ui.notify(
+							"Invalid border style. Choose: line, double, dotted, space, none",
+							"warning",
+						);
 						return;
 					}
 					nextConfig.borderStyle = b;
@@ -218,7 +317,10 @@ export function registerSidebarCommands(
 					break;
 
 				default:
-					ctx.ui.notify(`Unknown subcommand "${subcommand}". Use: /sidebar help`, "warning");
+					ctx.ui.notify(
+						`Unknown subcommand "${subcommand}". Use: /sidebar help`,
+						"warning",
+					);
 					return;
 			}
 

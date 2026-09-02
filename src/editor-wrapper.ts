@@ -5,7 +5,12 @@ import type { KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import { getActiveConfig } from "./config.js";
 
 export class SidebarAwareEditor extends CustomEditor {
-	constructor(tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager, options?: EditorOptions) {
+	constructor(
+		tui: TUI,
+		theme: EditorTheme,
+		keybindings: KeybindingsManager,
+		options?: EditorOptions,
+	) {
 		super(tui, theme, keybindings, options);
 	}
 

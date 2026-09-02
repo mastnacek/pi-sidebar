@@ -61,7 +61,8 @@ export function getGitInfo(cwd: string, force = false): GitInfo {
 			behind = Number.parseInt(behindMatch[1], 10) || 0;
 		}
 
-		const dirty = lines.slice(1).some((l) => !l.startsWith("??") || true) && lines.length > 1;
+		const dirty =
+			lines.slice(1).some((l) => !l.startsWith("??") || true) && lines.length > 1;
 
 		const info: GitInfo = {
 			branch,

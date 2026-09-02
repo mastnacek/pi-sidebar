@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DEFAULT_CONFIG, getActiveConfig, setActiveConfig } from "../src/config.js";
+import {
+	DEFAULT_CONFIG,
+	getActiveConfig,
+	setActiveConfig,
+} from "../src/config.js";
 import { formatProjectPath, getGitInfo } from "../src/git.js";
 import { formatCost, formatPercent, formatTokens } from "../src/stats.js";
 

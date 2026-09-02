@@ -2,7 +2,12 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { SidebarBorderStyle, SidebarBranding, SidebarConfig, SidebarPreset } from "./types.js";
+import type {
+	SidebarBorderStyle,
+	SidebarBranding,
+	SidebarConfig,
+	SidebarPreset,
+} from "./types.js";
 
 export const CONFIG_ENTRY_TYPE = "pi-sidebar-config";
 
@@ -59,13 +64,23 @@ export function saveGlobalConfig(config: SidebarConfig): void {
 	}
 }
 
-function resolveBoolean(sessionVal?: boolean, globalVal?: boolean, fallback = true): boolean {
+function resolveBoolean(
+	sessionVal?: boolean,
+	globalVal?: boolean,
+	fallback = true,
+): boolean {
 	if (typeof sessionVal === "boolean") return sessionVal;
 	if (typeof globalVal === "boolean") return globalVal;
 	return fallback;
 }
 
-function resolveNumber(sessionVal?: number, globalVal?: number, fallback = 28, min = 16, max = 60): number {
+function resolveNumber(
+	sessionVal?: number,
+	globalVal?: number,
+	fallback = 28,
+	min = 16,
+	max = 60,
+): number {
 	if (typeof sessionVal === "number" && sessionVal >= min && sessionVal <= max) {
 		return sessionVal;
 	}
@@ -75,24 +90,48 @@ function resolveNumber(sessionVal?: number, globalVal?: number, fallback = 28, m
 	return fallback;
 }
 
-function resolvePreset(sessionVal?: string, globalVal?: string, fallback: SidebarPreset = "opencode"): SidebarPreset {
+function resolvePreset(
+	sessionVal?: string,
+	globalVal?: string,
+	fallback: SidebarPreset = "opencode",
+): SidebarPreset {
 	const valid: SidebarPreset[] = ["opencode", "compact", "detailed"];
-	if (sessionVal && valid.includes(sessionVal as SidebarPreset)) return sessionVal as SidebarPreset;
-	if (globalVal && valid.includes(globalVal as SidebarPreset)) return globalVal as SidebarPreset;
+	if (sessionVal && valid.includes(sessionVal as SidebarPreset))
+		return sessionVal as SidebarPreset;
+	if (globalVal && valid.includes(globalVal as SidebarPreset))
+		return globalVal as SidebarPreset;
 	return fallback;
 }
 
-function resolveBranding(sessionVal?: string, globalVal?: string, fallback: SidebarBranding = "opencode"): SidebarBranding {
+function resolveBranding(
+	sessionVal?: string,
+	globalVal?: string,
+	fallback: SidebarBranding = "opencode",
+): SidebarBranding {
 	const valid: SidebarBranding[] = ["opencode", "pi", "custom"];
-	if (sessionVal && valid.includes(sessionVal as SidebarBranding)) return sessionVal as SidebarBranding;
-	if (globalVal && valid.includes(globalVal as SidebarBranding)) return globalVal as SidebarBranding;
+	if (sessionVal && valid.includes(sessionVal as SidebarBranding))
+		return sessionVal as SidebarBranding;
+	if (globalVal && valid.includes(globalVal as SidebarBranding))
+		return globalVal as SidebarBranding;
 	return fallback;
 }
 
-function resolveBorderStyle(sessionVal?: string, globalVal?: string, fallback: SidebarBorderStyle = "line"): SidebarBorderStyle {
-	const valid: SidebarBorderStyle[] = ["line", "double", "dotted", "space", "none"];
-	if (sessionVal && valid.includes(sessionVal as SidebarBorderStyle)) return sessionVal as SidebarBorderStyle;
-	if (globalVal && valid.includes(globalVal as SidebarBorderStyle)) return globalVal as SidebarBorderStyle;
+function resolveBorderStyle(
+	sessionVal?: string,
+	globalVal?: string,
+	fallback: SidebarBorderStyle = "line",
+): SidebarBorderStyle {
+	const valid: SidebarBorderStyle[] = [
+		"line",
+		"double",
+		"dotted",
+		"space",
+		"none",
+	];
+	if (sessionVal && valid.includes(sessionVal as SidebarBorderStyle))
+		return sessionVal as SidebarBorderStyle;
+	if (globalVal && valid.includes(globalVal as SidebarBorderStyle))
+		return globalVal as SidebarBorderStyle;
 	return fallback;
 }
 
@@ -116,17 +155,62 @@ export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 	}
 
 	const resolved: SidebarConfig = {
-		enabled: resolveBoolean(sessionCfg?.enabled, globalCfg.enabled, DEFAULT_CONFIG.enabled),
-		width: resolveNumber(sessionCfg?.width, globalCfg.width, DEFAULT_CONFIG.width, 16, 60),
-		minTerminalWidth: resolveNumber(sessionCfg?.minTerminalWidth, globalCfg.minTerminalWidth, DEFAULT_CONFIG.minTerminalWidth, 40, 200),
-		preset: resolvePreset(sessionCfg?.preset, globalCfg.preset, DEFAULT_CONFIG.preset),
-		branding: resolveBranding(sessionCfg?.branding, globalCfg.branding, DEFAULT_CONFIG.branding),
-		customBrandingText: sessionCfg?.customBrandingText ?? globalCfg.customBrandingText,
-		borderStyle: resolveBorderStyle(sessionCfg?.borderStyle, globalCfg.borderStyle, DEFAULT_CONFIG.borderStyle),
-		showLsp: resolveBoolean(sessionCfg?.showLsp, globalCfg.showLsp, DEFAULT_CONFIG.showLsp),
-		showContext: resolveBoolean(sessionCfg?.showContext, globalCfg.showContext, DEFAULT_CONFIG.showContext),
-		showGit: resolveBoolean(sessionCfg?.showGit, globalCfg.showGit, DEFAULT_CONFIG.showGit),
-		showSession: resolveBoolean(sessionCfg?.showSession, globalCfg.showSession, DEFAULT_CONFIG.showSession),
+		enabled: resolveBoolean(
+			sessionCfg?.enabled,
+			globalCfg.enabled,
+			DEFAULT_CONFIG.enabled,
+		),
+		width: resolveNumber(
+			sessionCfg?.width,
+			globalCfg.width,
+			DEFAULT_CONFIG.width,
+			16,
+			60,
+		),
+		minTerminalWidth: resolveNumber(
+			sessionCfg?.minTerminalWidth,
+			globalCfg.minTerminalWidth,
+			DEFAULT_CONFIG.minTerminalWidth,
+			40,
+			200,
+		),
+		preset: resolvePreset(
+			sessionCfg?.preset,
+			globalCfg.preset,
+			DEFAULT_CONFIG.preset,
+		),
+		branding: resolveBranding(
+			sessionCfg?.branding,
+			globalCfg.branding,
+			DEFAULT_CONFIG.branding,
+		),
+		customBrandingText:
+			sessionCfg?.customBrandingText ?? globalCfg.customBrandingText,
+		borderStyle: resolveBorderStyle(
+			sessionCfg?.borderStyle,
+			globalCfg.borderStyle,
+			DEFAULT_CONFIG.borderStyle,
+		),
+		showLsp: resolveBoolean(
+			sessionCfg?.showLsp,
+			globalCfg.showLsp,
+			DEFAULT_CONFIG.showLsp,
+		),
+		showContext: resolveBoolean(
+			sessionCfg?.showContext,
+			globalCfg.showContext,
+			DEFAULT_CONFIG.showContext,
+		),
+		showGit: resolveBoolean(
+			sessionCfg?.showGit,
+			globalCfg.showGit,
+			DEFAULT_CONFIG.showGit,
+		),
+		showSession: resolveBoolean(
+			sessionCfg?.showSession,
+			globalCfg.showSession,
+			DEFAULT_CONFIG.showSession,
+		),
 	};
 
 	activeConfig = resolved;

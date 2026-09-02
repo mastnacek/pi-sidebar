@@ -1,6 +1,11 @@
 export type SidebarPreset = "opencode" | "compact" | "detailed";
 export type SidebarBranding = "opencode" | "pi" | "custom";
-export type SidebarBorderStyle = "line" | "double" | "dotted" | "space" | "none";
+export type SidebarBorderStyle =
+	| "line"
+	| "double"
+	| "dotted"
+	| "space"
+	| "none";
 
 export interface SidebarConfig {
 	enabled: boolean;

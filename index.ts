@@ -1,7 +1,15 @@
-import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+	Theme,
+} from "@earendil-works/pi-coding-agent";
 import type { Component, OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { registerSidebarCommands } from "./src/commands.js";
-import { getActiveConfig, resolveEffectiveConfig, setActiveConfig } from "./src/config.js";
+import {
+	getActiveConfig,
+	resolveEffectiveConfig,
+	setActiveConfig,
+} from "./src/config.js";
 import { SidebarAwareEditor } from "./src/editor-wrapper.js";
 import { SidebarComponent } from "./src/sidebar-component.js";
 import type { SidebarConfig } from "./src/types.js";
@@ -20,7 +28,12 @@ export default function (pi: ExtensionAPI): void {
 	let currentContext: ExtensionContext | null = null;
 	let currentTheme: Theme | null = null;
 
-	function applySidebar(tui: TUI, ctx: ExtensionContext, theme: Theme, configOverride?: SidebarConfig): void {
+	function applySidebar(
+		tui: TUI,
+		ctx: ExtensionContext,
+		theme: Theme,
+		configOverride?: SidebarConfig,
+	): void {
 		currentTui = tui;
 		currentContext = ctx;
 		currentTheme = theme;

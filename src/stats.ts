@@ -20,14 +20,21 @@ export function getSessionStats(ctx: ExtensionContext): SessionStats {
 					totalCacheWrite += u.cacheWrite ?? 0;
 					totalCost += u.cost?.total ?? 0;
 				}
-			} else if (entry.type === "message" && entry.message.role === "toolResult" && entry.message.usage) {
+			} else if (
+				entry.type === "message" &&
+				entry.message.role === "toolResult" &&
+				entry.message.usage
+			) {
 				const u = entry.message.usage;
 				totalInputTokens += u.input ?? 0;
 				totalOutputTokens += u.output ?? 0;
 				totalCacheRead += u.cacheRead ?? 0;
 				totalCacheWrite += u.cacheWrite ?? 0;
 				totalCost += u.cost?.total ?? 0;
-			} else if ((entry.type === "branch_summary" || entry.type === "compaction") && entry.usage) {
+			} else if (
+				(entry.type === "branch_summary" || entry.type === "compaction") &&
+				entry.usage
+			) {
 				const u = entry.usage;
 				totalInputTokens += u.input ?? 0;
 				totalOutputTokens += u.output ?? 0;
@@ -44,7 +51,11 @@ export function getSessionStats(ctx: ExtensionContext): SessionStats {
 	const model = ctx.model;
 	const contextWindow = usage?.contextWindow ?? model?.contextWindow ?? 0;
 	const contextTokens = usage?.tokens ?? null;
-	const contextPercent = usage?.percent ?? (contextTokens !== null && contextWindow > 0 ? (contextTokens / contextWindow) * 100 : null);
+	const contextPercent =
+		usage?.percent ??
+		(contextTokens !== null && contextWindow > 0
+			? (contextTokens / contextWindow) * 100
+			: null);
 
 	return {
 		totalInputTokens,
