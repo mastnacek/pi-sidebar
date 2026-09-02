@@ -52,9 +52,7 @@ export function registerSidebarCommands(
 				const cmd = (tokens[0] ?? "").toLowerCase();
 
 				if (
-					["on", "off", "toggle", "status", "refresh", "reset", "help"].includes(
-						cmd,
-					)
+					["on", "off", "toggle", "status", "refresh", "reset", "help"].includes(cmd)
 				) {
 					return null;
 				}
