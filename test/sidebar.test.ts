@@ -7,6 +7,7 @@ import {
 } from "../src/config.js";
 import { formatProjectPath, getGitInfo } from "../src/git.js";
 import { contextBar, formatResetTime } from "../src/quota.js";
+import { SidebarComponent } from "../src/sidebar-component.js";
 import {
 	formatCost,
 	formatPercent,
@@ -82,6 +83,33 @@ test("getGitInfo returns branch information in git directory", () => {
 	assert.equal(typeof info.dirty, "boolean");
 	assert.equal(typeof info.ahead, "number");
 	assert.equal(typeof info.behind, "number");
+});
+
+test("SidebarComponent handles scrolling offset bounds", () => {
+	const mockTui: any = { terminal: { rows: 24, columns: 80 } };
+	const mockPi: any = { getActiveTools: () => [], getThinkingLevel: () => "off" };
+	const mockCtx: any = {
+		cwd: process.cwd(),
+		model: { id: "test-model" },
+		sessionManager: { getSessionName: () => "test", getEntries: () => [] },
+		getContextUsage: () => null,
+	};
+	const mockTheme: any = {
+		fg: (_: string, s: string) => s,
+		bg: (_: string, s: string) => s,
+	};
+
+	const sidebar = new SidebarComponent(mockTui, mockPi, mockCtx, mockTheme);
+	assert.equal(sidebar.getScrollOffset(), 0);
+
+	sidebar.scrollBy(5);
+	assert.equal(sidebar.getScrollOffset(), 5);
+
+	sidebar.scrollBy(-10);
+	assert.equal(sidebar.getScrollOffset(), 0);
+
+	sidebar.scrollTo(12);
+	assert.equal(sidebar.getScrollOffset(), 12);
 });
 
 test("getActiveConfig and setActiveConfig update active state", () => {

@@ -128,6 +128,13 @@ export default function (pi: ExtensionAPI): void {
 		ctx.ui.notify(`Sidebar width: ${newWidth} cols`, "info");
 	}
 
+	function scrollSidebar(delta: number): void {
+		if (sidebarComponent && currentTui) {
+			sidebarComponent.scrollBy(delta);
+			currentTui.requestRender();
+		}
+	}
+
 	// 1. Session start lifecycle hook
 	pi.on("session_start", (_event, ctx: ExtensionContext) => {
 		currentContext = ctx;
@@ -176,7 +183,7 @@ export default function (pi: ExtensionAPI): void {
 		currentTui = null;
 	});
 
-	// 4. Keyboard shortcuts for collapsing and resizing (layout-agnostic, works on Czech keyboard)
+	// 4. Keyboard shortcuts for collapsing, resizing, and vertical scrolling
 	pi.registerShortcut("ctrl+shift+b", {
 		description: "Toggle collapse / expand sidebar («)",
 		handler: (ctx) => {
@@ -212,10 +219,64 @@ export default function (pi: ExtensionAPI): void {
 		},
 	});
 
-	// 5. Slash command controller
-	registerSidebarCommands(pi, (newConfig, ctx) => {
-		if (currentTui && currentTheme) {
-			applySidebar(currentTui, ctx, currentTheme, newConfig);
-		}
+	pi.registerShortcut("ctrl+shift+up", {
+		description: "Scroll sidebar upward (-3 lines)",
+		handler: () => {
+			scrollSidebar(-3);
+		},
 	});
+
+	pi.registerShortcut("ctrl+shift+down", {
+		description: "Scroll sidebar downward (+3 lines)",
+		handler: () => {
+			scrollSidebar(3);
+		},
+	});
+
+	pi.registerShortcut("alt+up", {
+		description: "Scroll sidebar upward (-3 lines)",
+		handler: () => {
+			scrollSidebar(-3);
+		},
+	});
+
+	pi.registerShortcut("alt+down", {
+		description: "Scroll sidebar downward (+3 lines)",
+		handler: () => {
+			scrollSidebar(3);
+		},
+	});
+
+	pi.registerShortcut("ctrl+shift+pageUp", {
+		description: "Scroll sidebar page up (-10 lines)",
+		handler: () => {
+			scrollSidebar(-10);
+		},
+	});
+
+	pi.registerShortcut("ctrl+shift+pageDown", {
+		description: "Scroll sidebar page down (+10 lines)",
+		handler: () => {
+			scrollSidebar(10);
+		},
+	});
+
+	// 5. Slash command controller
+	registerSidebarCommands(
+		pi,
+		(newConfig, ctx) => {
+			if (currentTui && currentTheme) {
+				applySidebar(currentTui, ctx, currentTheme, newConfig);
+			}
+		},
+		(delta) => {
+			scrollSidebar(delta);
+		},
+		(offset) => {
+			if (sidebarComponent && currentTui) {
+				sidebarComponent.scrollTo(offset);
+				currentTui.requestRender();
+			}
+		},
+	);
 }

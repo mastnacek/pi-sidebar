@@ -42,6 +42,7 @@ export class SidebarComponent implements Component {
 	private ctx: ExtensionContext;
 	private theme: Theme;
 	private sessionStartIso: string;
+	private scrollOffset = 0;
 
 	constructor(tui: TUI, pi: ExtensionAPI, ctx: ExtensionContext, theme: Theme) {
 		this.tui = tui;
@@ -57,6 +58,21 @@ export class SidebarComponent implements Component {
 
 	updateTheme(theme: Theme): void {
 		this.theme = theme;
+	}
+
+	scrollBy(delta: number): number {
+		this.scrollOffset += delta;
+		if (this.scrollOffset < 0) this.scrollOffset = 0;
+		return this.scrollOffset;
+	}
+
+	scrollTo(offset: number): number {
+		this.scrollOffset = Math.max(0, offset);
+		return this.scrollOffset;
+	}
+
+	getScrollOffset(): number {
+		return this.scrollOffset;
 	}
 
 	invalidate(): void {
@@ -157,7 +173,7 @@ export class SidebarComponent implements Component {
 					: success;
 
 		// =========================================================================
-		// PRESET: DETAILED (Clean, structured dashboard)
+		// PRESET: DETAILED (Full, comprehensive vertical telemetry)
 		// =========================================================================
 		if (config.preset === "detailed") {
 			// 1. Session Section
@@ -197,11 +213,13 @@ export class SidebarComponent implements Component {
 				const barW = Math.max(6, Math.min(10, innerWidth - 6));
 				const autoStr = isAutoCompactEnabled(this.ctx.cwd) ? " (auto)" : "";
 				const bar = ctxColor(contextBar(percentValue, barW));
-				const pctStr = percentValue === null ? "?%" : `${percentValue.toFixed(1)}%`;
+				const pctStr =
+					percentValue === null ? "?%" : `${percentValue.toFixed(1)}%`;
 				topLines.push(`${bar} ${ctxColor(pctStr)}${dim(autoStr)}`);
 
 				const tokensUsed =
-					stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens;
+					stats.contextTokens ??
+					stats.totalInputTokens + stats.totalOutputTokens;
 				const windowStr = `${formatTokensCompact(tokensUsed)} / ${formatTokensCompact(stats.contextWindow)} tokens`;
 				topLines.push(muted(windowStr));
 
@@ -230,7 +248,8 @@ export class SidebarComponent implements Component {
 			if (config.showQuota) {
 				const isKimi = model?.provider === "kimi-coding";
 				const isZai =
-					model?.provider === "zai-coding-cn" || model?.provider === "zai-coding";
+					model?.provider === "zai-coding-cn" ||
+					model?.provider === "zai-coding";
 
 				const kimi = getKimiQuotas();
 				const zai = getZaiQuotas();
@@ -325,7 +344,8 @@ export class SidebarComponent implements Component {
 			}
 
 			if (config.showContext) {
-				const pctStr = percentValue === null ? "?%" : `${percentValue.toFixed(0)}%`;
+				const pctStr =
+					percentValue === null ? "?%" : `${percentValue.toFixed(0)}%`;
 				const costStr = `$${(stats.totalCost || 0).toFixed(2)}`;
 				topLines.push(
 					`${ctxColor(pctStr)} ${dim("│")} ${warning(costStr)} ${dim("│")} ${muted(formatTokensCompact(stats.totalInputTokens + stats.totalOutputTokens))}`,
@@ -356,7 +376,8 @@ export class SidebarComponent implements Component {
 				topLines.push(accent("Context"));
 
 				const tokensStr = formatTokens(
-					stats.contextTokens ?? stats.totalInputTokens + stats.totalOutputTokens,
+					stats.contextTokens ??
+						stats.totalInputTokens + stats.totalOutputTokens,
 				);
 				topLines.push(muted(tokensStr));
 
@@ -399,7 +420,7 @@ export class SidebarComponent implements Component {
 		}
 
 		// =========================================================================
-		// Bottom Section: Git & Path
+		// Bottom Section: Git & Workspace
 		// =========================================================================
 		if (config.showGit) {
 			const cwd = this.ctx.cwd;
@@ -434,9 +455,9 @@ export class SidebarComponent implements Component {
 		// Permanent Shortcut Hints Section
 		// =========================================================================
 		bottomLines.push(header("SHORTCUTS"));
-		bottomLines.push(dim("⌨️ ctrl+shift+b  « toggle"));
-		bottomLines.push(dim("⌨️ ctrl+shift+→  wider"));
-		bottomLines.push(dim("⌨️ ctrl+shift+←  narrow"));
+		bottomLines.push(dim("⌨️ ctrl+shift+b    « toggle"));
+		bottomLines.push(dim("⌨️ ctrl+shift+↑/↓  scroll"));
+		bottomLines.push(dim("⌨️ ctrl+shift+←/→  resize"));
 		bottomLines.push("");
 
 		// =========================================================================
@@ -451,27 +472,57 @@ export class SidebarComponent implements Component {
 		bottomLines.push(success(brandingText));
 
 		// =========================================================================
-		// Assemble Vertical Layout
+		// Assemble All Content & Apply Independent Vertical Scrolling
 		// =========================================================================
-		const totalContentRows = topLines.length + bottomLines.length;
-		const targetHeight =
-			termHeight > 0 ? termHeight : Math.max(totalContentRows, 24);
-		const emptyMiddleRows = Math.max(0, targetHeight - totalContentRows);
+		const totalLines = topLines.length + bottomLines.length;
+		const viewportHeight =
+			termHeight > 0 ? termHeight : Math.max(totalLines, 24);
 
-		const allContentLines: string[] = [
-			...topLines,
-			...Array.from({ length: emptyMiddleRows }, () => ""),
-			...bottomLines,
-		];
+		let allContentLines: string[];
+		if (totalLines <= viewportHeight) {
+			const emptyMiddleRows = Math.max(0, viewportHeight - totalLines);
+			allContentLines = [
+				...topLines,
+				...Array.from({ length: emptyMiddleRows }, () => ""),
+				...bottomLines,
+			];
+		} else {
+			allContentLines = [...topLines, ...bottomLines];
+		}
 
-		const constrainedLines =
-			termHeight > 0 && allContentLines.length > termHeight
-				? allContentLines.slice(0, termHeight)
-				: allContentLines;
+		const totalContentCount = allContentLines.length;
+		const maxScroll = Math.max(0, totalContentCount - viewportHeight);
+		this.scrollOffset = Math.max(0, Math.min(maxScroll, this.scrollOffset));
 
-		return constrainedLines.map((content) => {
+		const visibleLines = allContentLines.slice(
+			this.scrollOffset,
+			this.scrollOffset + viewportHeight,
+		);
+
+		// Calculate scrollbar thumb when content overflows viewport
+		let thumbStart = -1;
+		let thumbEnd = -1;
+		if (maxScroll > 0 && totalContentCount > 0) {
+			const thumbHeight = Math.max(
+				1,
+				Math.round((viewportHeight / totalContentCount) * viewportHeight),
+			);
+			thumbStart = Math.round(
+				(this.scrollOffset / maxScroll) * (viewportHeight - thumbHeight),
+			);
+			thumbEnd = thumbStart + thumbHeight;
+		}
+
+		return visibleLines.map((content, idx) => {
+			const isThumb =
+				thumbStart >= 0 && idx >= thumbStart && idx < thumbEnd;
 			const border =
-				config.borderStyle === "none" ? "" : th.fg("border", borderPrefix);
+				config.borderStyle === "none"
+					? ""
+					: isThumb
+						? th.fg("accent", "┃ ")
+						: th.fg("border", borderPrefix);
+
 			const lineWithoutBorder = content;
 			const lineVisWidth = visibleWidth(lineWithoutBorder);
 			const padLen = Math.max(0, innerWidth - lineVisWidth);

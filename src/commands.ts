@@ -27,6 +27,7 @@ const COMMAND_DOCS: Record<string, string> = {
 	expand: "expand sidebar overlay",
 	wider: "increase sidebar width (+4 cols, ctrl+shift+→)",
 	narrower: "decrease sidebar width (-4 cols, ctrl+shift+←)",
+	scroll: "scroll sidebar vertically (up | down | top | bottom)",
 	width: "set sidebar column width (16-60)",
 	resize: "adjust sidebar width (+N or -N)",
 	preset: "switch content preset (opencode | compact | detailed)",
@@ -40,6 +41,8 @@ const COMMAND_DOCS: Record<string, string> = {
 export function registerSidebarCommands(
 	pi: ExtensionAPI,
 	onConfigChanged: (config: SidebarConfig, ctx: ExtensionContext) => void,
+	onScrollBy?: (delta: number) => void,
+	onScrollTo?: (offset: number) => void,
 ): void {
 	pi.registerCommand("sidebar", {
 		description: "Resizable & collapsible sidebar overlay controller",
@@ -70,6 +73,35 @@ export function registerSidebarCommands(
 					].includes(cmd)
 				) {
 					return null;
+				}
+
+				if (cmd === "scroll") {
+					const scrollOptions = [
+						{
+							value: "scroll up",
+							label: "scroll up",
+							description: "Scroll up 3 lines (ctrl+shift+↑)",
+						},
+						{
+							value: "scroll down",
+							label: "scroll down",
+							description: "Scroll down 3 lines (ctrl+shift+↓)",
+						},
+						{
+							value: "scroll top",
+							label: "scroll top",
+							description: "Scroll to top",
+						},
+						{
+							value: "scroll bottom",
+							label: "scroll bottom",
+							description: "Scroll to bottom",
+						},
+					];
+					const filtered = scrollOptions.filter((i) =>
+						i.value.toLowerCase().startsWith(normalizedPrefix),
+					);
+					return filtered.length > 0 ? filtered : null;
 				}
 
 				if (cmd === "width" || cmd === "resize") {
@@ -215,12 +247,13 @@ export function registerSidebarCommands(
 				const cfg = getActiveConfig();
 				const helpText = [
 					"# /sidebar — Resizable & Collapsible Sidebar Controller",
-					"Docked right-hand sidebar with dynamic resizing and quick collapse.",
+					"Docked right-hand sidebar with independent vertical scrolling and dynamic resizing.",
 					"",
 					"### Controls & Shortcuts:",
 					"  ctrl+shift+b               — Toggle collapse / expand («)",
-					"  ctrl+shift+→ / alt+→       — Resize width wider (+4 cols)",
-					"  ctrl+shift+← / alt+←       — Resize width narrower (-4 cols)",
+					"  ctrl+shift+↑/↓ (alt+↑/↓)   — Scroll sidebar up/down (±3 lines)",
+					"  ctrl+shift+pageUp/Down     — Scroll page up/down (±10 lines)",
+					"  ctrl+shift+→/← (alt+→/←)   — Resize width wider/narrower (±4 cols)",
 					"",
 					"### Permanent Hints:",
 					"  Permanent shortcut cheatsheet is displayed at the bottom of the sidebar.",
@@ -228,6 +261,7 @@ export function registerSidebarCommands(
 					"### Commands:",
 					"  /sidebar on|off|toggle     — Toggle collapse / expand",
 					"  /sidebar collapse|expand   — Explicit collapse or expand",
+					"  /sidebar scroll <up|down|top|bottom> [lines] — Scroll sidebar viewport",
 					"  /sidebar wider [delta]     — Increase column width (default: +4)",
 					"  /sidebar narrower [delta]  — Decrease column width (default: -4)",
 					"  /sidebar width <16-60>     — Set exact column width (default: 28)",
@@ -274,6 +308,36 @@ export function registerSidebarCommands(
 					);
 					break;
 
+				case "scroll":
+				case "up":
+				case "down": {
+					const dir =
+						subcommand === "scroll"
+							? (rest[0] ?? "down").toLowerCase()
+							: subcommand;
+					const count =
+						Number.parseInt(
+							subcommand === "scroll"
+								? (rest[1] ?? "3")
+								: (rest[0] ?? "3"),
+							10,
+						) || 3;
+					if (dir === "top") {
+						onScrollTo?.(0);
+						ctx.ui.notify("Scrolled sidebar to top", "info");
+					} else if (dir === "bottom") {
+						onScrollTo?.(9999);
+						ctx.ui.notify("Scrolled sidebar to bottom", "info");
+					} else if (dir === "up") {
+						onScrollBy?.(-count);
+						ctx.ui.notify(`Scrolled sidebar up (-${count} lines)`, "info");
+					} else {
+						onScrollBy?.(count);
+						ctx.ui.notify(`Scrolled sidebar down (+${count} lines)`, "info");
+					}
+					return;
+				}
+
 				case "status": {
 					const msg = [
 						`Sidebar: ${current.enabled ? "EXPANDED" : "COLLAPSED («)"}`,
@@ -312,7 +376,10 @@ export function registerSidebarCommands(
 					if (value.startsWith("+") || value.startsWith("-")) {
 						const delta = Number.parseInt(value, 10);
 						if (!Number.isNaN(delta)) {
-							const newW = Math.max(16, Math.min(60, current.width + delta));
+							const newW = Math.max(
+								16,
+								Math.min(60, current.width + delta),
+							);
 							nextConfig.width = newW;
 							nextConfig.enabled = true;
 							ctx.ui.notify(`Sidebar width: ${newW} cols`, "info");
