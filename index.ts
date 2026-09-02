@@ -6,6 +6,7 @@ import type {
 import type { Component, OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { registerSidebarCommands } from "./src/commands.js";
 import {
+	CONFIG_ENTRY_TYPE,
 	getActiveConfig,
 	resolveEffectiveConfig,
 	setActiveConfig,
@@ -77,8 +78,22 @@ export default function (pi: ExtensionAPI): void {
 		tui.requestRender();
 	}
 
+	function toggleSidebar(ctx: ExtensionContext): void {
+		const current = getActiveConfig();
+		const next: SidebarConfig = { ...current, enabled: !current.enabled };
+		setActiveConfig(next);
+		pi.appendEntry(CONFIG_ENTRY_TYPE, next);
+		if (currentTui && currentTheme) {
+			applySidebar(currentTui, ctx, currentTheme, next);
+		}
+		ctx.ui.notify(
+			`Sidebar ${next.enabled ? "enabled" : "disabled"}`,
+			"info",
+		);
+	}
+
 	// 1. Session start lifecycle hook
-	pi.on("session_start", async (_event, ctx: ExtensionContext) => {
+	pi.on("session_start", (_event, ctx: ExtensionContext) => {
 		currentContext = ctx;
 		if (!ctx.hasUI || ctx.mode !== "tui") return;
 
@@ -130,7 +145,15 @@ export default function (pi: ExtensionAPI): void {
 		currentTui = null;
 	});
 
-	// 4. Slash command controller
+	// 4. Keyboard shortcut toggle (matches OpenCode sidebar toggle)
+	pi.registerShortcut("ctrl+shift+b", {
+		description: "Toggle OpenCode sidebar overlay",
+		handler: (ctx) => {
+			toggleSidebar(ctx);
+		},
+	});
+
+	// 5. Slash command controller
 	registerSidebarCommands(pi, (newConfig, ctx) => {
 		if (currentTui && currentTheme) {
 			applySidebar(currentTui, ctx, currentTheme, newConfig);

@@ -206,7 +206,8 @@ export class SidebarComponent implements Component {
 
 		// ================= Assemble Vertical Layout =================
 		const totalContentRows = topLines.length + bottomLines.length;
-		const targetHeight = termHeight > 0 ? termHeight : Math.max(totalContentRows, 24);
+		const targetHeight =
+			termHeight > 0 ? termHeight : Math.max(totalContentRows, 24);
 		const emptyMiddleRows = Math.max(0, targetHeight - totalContentRows);
 
 		const allContentLines: string[] = [
@@ -216,9 +217,10 @@ export class SidebarComponent implements Component {
 		];
 
 		// In fullscreen / alt-screen mode, ensure overlay lines do not exceed terminal rows
-		const constrainedLines = termHeight > 0 && allContentLines.length > termHeight
-			? allContentLines.slice(0, termHeight)
-			: allContentLines;
+		const constrainedLines =
+			termHeight > 0 && allContentLines.length > termHeight
+				? allContentLines.slice(0, termHeight)
+				: allContentLines;
 
 		// Format every line with border and pad to exact width
 		return constrainedLines.map((content) => {
