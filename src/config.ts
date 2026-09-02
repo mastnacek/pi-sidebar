@@ -23,7 +23,7 @@ export const DEFAULT_CONFIG: SidebarConfig = {
 	width: 28,
 	minTerminalWidth: 80,
 	preset: "opencode",
-	branding: "opencode",
+	branding: "pi",
 	borderStyle: "line",
 	showLsp: true,
 	showContext: true,
@@ -106,7 +106,7 @@ function resolvePreset(
 function resolveBranding(
 	sessionVal?: string,
 	globalVal?: string,
-	fallback: SidebarBranding = "opencode",
+	fallback: SidebarBranding = "pi",
 ): SidebarBranding {
 	const valid: SidebarBranding[] = ["opencode", "pi", "custom"];
 	if (sessionVal && valid.includes(sessionVal as SidebarBranding))

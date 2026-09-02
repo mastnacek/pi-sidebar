@@ -12,7 +12,7 @@ test("DEFAULT_CONFIG has valid OpenCode defaults", () => {
 	assert.equal(DEFAULT_CONFIG.enabled, true);
 	assert.equal(DEFAULT_CONFIG.width, 28);
 	assert.equal(DEFAULT_CONFIG.preset, "opencode");
-	assert.equal(DEFAULT_CONFIG.branding, "opencode");
+	assert.equal(DEFAULT_CONFIG.branding, "pi");
 	assert.equal(DEFAULT_CONFIG.borderStyle, "line");
 });
 
