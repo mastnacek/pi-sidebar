@@ -31,6 +31,7 @@ export default function (pi: ExtensionAPI): void {
 	let currentTheme: Theme | null = null;
 	let capturedFooterData: FooterDataProviderLike | null = null;
 	let unsubBranch: (() => void) | null = null;
+	let removeInputListener: (() => void) | null = null;
 
 	const refreshUI = () => {
 		if (currentTui && currentContext && currentTheme) {
@@ -108,6 +109,64 @@ export default function (pi: ExtensionAPI): void {
 
 		// Wrap the input editor so it stops before the sidebar
 		ctx.ui.setEditorComponent((t, th, kb) => new SidebarAwareEditor(t, th, kb));
+
+		// Hook mouse wheel listener over sidebar region
+		if (!removeInputListener) {
+			try {
+				tui.terminal?.write?.("\x1b[?1000h\x1b[?1006h");
+			} catch {
+				// Non-fatal
+			}
+
+			removeInputListener = tui.addInputListener((data: string) => {
+				const active = getActiveConfig();
+				if (!active.enabled) return undefined;
+
+				// SGR Mouse Protocol: \x1b[<button;col;row;M or m
+				const sgrMatch = data.match(/^\x1b\[<(\d+);(\d+);(\d+)([Mm])/);
+				if (sgrMatch) {
+					const button = Number.parseInt(sgrMatch[1], 10);
+					const col = Number.parseInt(sgrMatch[2], 10);
+					const termWidth =
+						tui.terminal?.columns || process.stdout?.columns || 80;
+					const sidebarStartCol = termWidth - active.width + 1;
+
+					if (col >= sidebarStartCol && col <= termWidth) {
+						// Button 64 = wheel up, 65 = wheel down (with modifiers 68, 72 / 69, 73)
+						if (button === 64 || button === 68 || button === 72) {
+							scrollSidebar(-3);
+							return { consume: true };
+						}
+						if (button === 65 || button === 69 || button === 73) {
+							scrollSidebar(3);
+							return { consume: true };
+						}
+					}
+				}
+
+				// Normal X10 / UTF-8 Mouse Protocol: \x1b[M <cb+32> <cx+32> <cy+32>
+				if (data.startsWith("\x1b[M") && data.length >= 6) {
+					const cb = data.charCodeAt(3) - 32;
+					const cx = data.charCodeAt(4) - 32;
+					const termWidth =
+						tui.terminal?.columns || process.stdout?.columns || 80;
+					const sidebarStartCol = termWidth - active.width + 1;
+
+					if (cx >= sidebarStartCol && cx <= termWidth) {
+						if (cb === 64 || cb === 96) {
+							scrollSidebar(-3);
+							return { consume: true };
+						}
+						if (cb === 65 || cb === 97) {
+							scrollSidebar(3);
+							return { consume: true };
+						}
+					}
+				}
+
+				return undefined;
+			});
+		}
 
 		pollActiveQuotas();
 		tui.requestRender();
@@ -217,6 +276,10 @@ export default function (pi: ExtensionAPI): void {
 		if (overlayHandle) {
 			overlayHandle.hide();
 			overlayHandle = null;
+		}
+		if (removeInputListener) {
+			removeInputListener();
+			removeInputListener = null;
 		}
 		unsubBranch?.();
 		unsubBranch = null;
