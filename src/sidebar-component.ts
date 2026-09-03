@@ -241,9 +241,7 @@ export class SidebarComponent implements Component {
 			const showLabels = width - borderColWidth >= 8;
 			const dot = (ready: boolean) => (ready ? "●" : "○");
 			const indicator = (icon: string, label: string, ready: boolean) =>
-				showLabels
-					? `${icon} ${label} ${dot(ready)}`
-					: `${icon} ${dot(ready)}`;
+				showLabels ? `${icon} ${label} ${dot(ready)}` : `${icon} ${dot(ready)}`;
 
 			// 1. Context ring gauge + percent
 			if (config.showContext) {
@@ -303,9 +301,7 @@ export class SidebarComponent implements Component {
 				const gitInfo = getGitInfo(this.ctx.cwd);
 				if (gitInfo.branch) {
 					const gitLine = indicator("🌿", "GIT", !gitInfo.dirty);
-					topLines.push(
-						center(gitInfo.dirty ? warning(gitLine) : success(gitLine)),
-					);
+					topLines.push(center(gitInfo.dirty ? warning(gitLine) : success(gitLine)));
 					if (gitInfo.ahead > 0) topLines.push(accent(center(`↑${gitInfo.ahead}`)));
 					if (gitInfo.behind > 0) topLines.push(dim(center(`↓${gitInfo.behind}`)));
 					topLines.push("");
@@ -335,7 +331,9 @@ export class SidebarComponent implements Component {
 				if (config.showLsp) {
 					const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
 					const lspLine = indicator("💡", "LSP", servers.length > 0);
-					topLines.push(center(servers.length > 0 ? success(lspLine) : dim(lspLine)));
+					topLines.push(
+						center(servers.length > 0 ? success(lspLine) : dim(lspLine)),
+					);
 				}
 			}
 		}
