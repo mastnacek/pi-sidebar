@@ -235,6 +235,15 @@ export class SidebarComponent implements Component {
 				const padLen = Math.max(0, innerWidth - visibleWidth(s));
 				return `${" ".repeat(Math.floor(padLen / 2))}${s}`;
 			};
+			// Short text labels fit when the strip is at least ~10 columns wide
+			// (usable width >= 8): e.g. "🌿 GIT ●". Below that, emoji-only fallback.
+			// NB: innerWidth has a floor of 8, so compute usable width directly.
+			const showLabels = width - borderColWidth >= 8;
+			const dot = (ready: boolean) => (ready ? "●" : "○");
+			const indicator = (icon: string, label: string, ready: boolean) =>
+				showLabels
+					? `${icon} ${label} ${dot(ready)}`
+					: `${icon} ${dot(ready)}`;
 
 			// 1. Context ring gauge + percent
 			if (config.showContext) {
@@ -244,9 +253,10 @@ export class SidebarComponent implements Component {
 				}
 				const pctStr =
 					percentValue === null ? "?%" : `${Math.round(percentValue)}%`;
-				topLines.push(ctxColor(center(pctStr)));
+				topLines.push(ctxColor(center(showLabels ? `📊 ${pctStr}` : pctStr)));
 				if (stats.totalCost > 0) {
-					topLines.push(dim(center(`$${stats.totalCost.toFixed(2)}`)));
+					const costStr = `$${stats.totalCost.toFixed(2)}`;
+					topLines.push(dim(center(showLabels ? `💰 ${costStr}` : costStr)));
 				}
 				topLines.push("");
 			}
@@ -292,8 +302,9 @@ export class SidebarComponent implements Component {
 			if (config.showGit) {
 				const gitInfo = getGitInfo(this.ctx.cwd);
 				if (gitInfo.branch) {
+					const gitLine = indicator("🌿", "GIT", !gitInfo.dirty);
 					topLines.push(
-						center(gitInfo.dirty ? warning("🌿 ●") : success("🌿 ○")),
+						center(gitInfo.dirty ? warning(gitLine) : success(gitLine)),
 					);
 					if (gitInfo.ahead > 0) topLines.push(accent(center(`↑${gitInfo.ahead}`)));
 					if (gitInfo.behind > 0) topLines.push(dim(center(`↓${gitInfo.behind}`)));
@@ -318,13 +329,13 @@ export class SidebarComponent implements Component {
 							t.startsWith("knowledge_base") ||
 							t.startsWith("lotusscript_lsp"),
 					);
-					topLines.push(center(hasMcp ? success("🔌 ●") : dim("🔌 ○")));
+					const mcpLine = indicator("🔌", "MCP", hasMcp);
+					topLines.push(center(hasMcp ? success(mcpLine) : dim(mcpLine)));
 				}
 				if (config.showLsp) {
 					const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
-					topLines.push(
-						center(servers.length > 0 ? success("💡 ●") : dim("💡 ○")),
-					);
+					const lspLine = indicator("💡", "LSP", servers.length > 0);
+					topLines.push(center(servers.length > 0 ? success(lspLine) : dim(lspLine)));
 				}
 			}
 		}
