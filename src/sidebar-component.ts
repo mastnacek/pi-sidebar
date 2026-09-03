@@ -283,8 +283,7 @@ export class SidebarComponent implements Component {
 
 				if (qPct !== null) {
 					const c = qColor(qPct);
-					topLines.push(c(center(contextBar(qPct, 4))));
-					topLines.push(c(center(`${Math.round(qPct)}%`)));
+					topLines.push(c(center(`📶 ${Math.round(qPct)}%`)));
 					topLines.push("");
 				}
 			}
@@ -293,7 +292,9 @@ export class SidebarComponent implements Component {
 			if (config.showGit) {
 				const gitInfo = getGitInfo(this.ctx.cwd);
 				if (gitInfo.branch) {
-					topLines.push(center(gitInfo.dirty ? warning("●") : success("○")));
+					topLines.push(
+						center(gitInfo.dirty ? warning("🌿 ●") : success("🌿 ○")),
+					);
 					if (gitInfo.ahead > 0) topLines.push(accent(center(`↑${gitInfo.ahead}`)));
 					if (gitInfo.behind > 0) topLines.push(dim(center(`↓${gitInfo.behind}`)));
 					topLines.push("");
@@ -317,11 +318,13 @@ export class SidebarComponent implements Component {
 							t.startsWith("knowledge_base") ||
 							t.startsWith("lotusscript_lsp"),
 					);
-					topLines.push(center(hasMcp ? success("●") : dim("○")));
+					topLines.push(center(hasMcp ? success("🔌 ●") : dim("🔌 ○")));
 				}
 				if (config.showLsp) {
 					const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
-					topLines.push(center(servers.length > 0 ? success("●") : dim("○")));
+					topLines.push(
+						center(servers.length > 0 ? success("💡 ●") : dim("💡 ○")),
+					);
 				}
 			}
 		}
