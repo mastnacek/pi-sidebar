@@ -27,11 +27,9 @@ const COMMAND_DOCS: Record<string, string> = {
 	expand: "rozbalit postranní panel",
 	wider: "zvětšit šířku panelu (+4 sloupce, ctrl+shift+→)",
 	narrower: "zmenšit šířku panelu (-4 sloupce, ctrl+shift+←)",
-	scroll: "posunout obsah panelu (up | down | top | bottom)",
 	mcp: "přepnout zobrazení MCP serverů v panelu (on | off | toggle)",
 	lsp: "přepnout zobrazení LSP stavu v panelu (on | off | toggle)",
 	extensions: "přepnout zobrazení rozšíření v panelu (on | off | toggle)",
-	mock: "přepnout testovací mock data pro test scrollování (on | off | toggle)",
 	width: "nastavit přesnou šířku panelu v sloupcích (16-60)",
 	resize: "upravit šířku panelu (+N nebo -N)",
 	preset: "přepnout styl zobrazení (opencode | compact | detailed)",
@@ -47,8 +45,6 @@ const COMMAND_DOCS: Record<string, string> = {
 export function registerSidebarCommands(
 	pi: ExtensionAPI,
 	onConfigChanged: (config: SidebarConfig, ctx: ExtensionContext) => void,
-	onScrollBy?: (delta: number) => void,
-	onScrollTo?: (offset: number) => void,
 ): void {
 	pi.registerCommand("sidebar", {
 		description: "Správa a nastavení rozbalovacího postranního panelu (sidebar)",
@@ -85,8 +81,7 @@ export function registerSidebarCommands(
 					cmd === "extensions" ||
 					cmd === "statusline" ||
 					cmd === "mcp" ||
-					cmd === "lsp" ||
-					cmd === "mock"
+					cmd === "lsp"
 				) {
 					const extOptions = [
 						{
@@ -106,35 +101,6 @@ export function registerSidebarCommands(
 						},
 					];
 					const filtered = extOptions.filter((i) =>
-						i.value.toLowerCase().startsWith(normalizedPrefix),
-					);
-					return filtered.length > 0 ? filtered : null;
-				}
-
-				if (cmd === "scroll") {
-					const scrollOptions = [
-						{
-							value: "scroll up",
-							label: "scroll up",
-							description: "Posunout nahoru o 3 řádky (ctrl+shift+↑)",
-						},
-						{
-							value: "scroll down",
-							label: "scroll down",
-							description: "Posunout dolů o 3 řádky (ctrl+shift+↓)",
-						},
-						{
-							value: "scroll top",
-							label: "scroll top",
-							description: "Posunout na úplný začátek (nahoru)",
-						},
-						{
-							value: "scroll bottom",
-							label: "scroll bottom",
-							description: "Posunout na úplný konec (dolů)",
-						},
-					];
-					const filtered = scrollOptions.filter((i) =>
 						i.value.toLowerCase().startsWith(normalizedPrefix),
 					);
 					return filtered.length > 0 ? filtered : null;
@@ -283,12 +249,10 @@ export function registerSidebarCommands(
 				const cfg = getActiveConfig();
 				const helpText = [
 					"# /sidebar — Správce rozbalovacího postranního panelu",
-					"Ukotvený pravý postranní panel s nezávislým vertikálním posunem a dynamickou změnou šířky.",
+					"Ukotvený pravý postranní panel s dynamickou změnou šířky a telemetrií.",
 					"",
 					"### Klávesové zkratky a ovládání:",
 					"  ctrl+shift+b               — Přepnout sbalení / rozbalení («)",
-					"  ctrl+shift+u/d             — Posunout obsah panelu nahoru/dolů (±3 řádky)",
-					"  ctrl+shift+pageUp/Down     — Posunout o celou stránku (±10 řádků)",
 					"  ctrl+shift+→/←             — Zvětšit / zmenšit šířku panelu (±4 sloupce)",
 					"",
 					"### Trvalá nápověda zkratek:",
@@ -297,11 +261,9 @@ export function registerSidebarCommands(
 					"### Příkazy:",
 					"  /sidebar on|off|toggle     — Zapnout / vypnout / přepnout panel",
 					"  /sidebar collapse|expand   — Explicitně sbalit nebo rozbalit",
-					"  /sidebar scroll <up|down|top|bottom> [řádky] — Posunout zobrazení panelu",
 					"  /sidebar mcp on|off        — Zobrazit/skrýt sekci MCP serverů v panelu",
 					"  /sidebar lsp on|off        — Zobrazit/skrýt sekci LSP stavu v panelu",
 					"  /sidebar extensions on|off — Zobrazit/skrýt ostatní rozšíření v panelu",
-					"  /sidebar mock on|off       — Zobrazit/skrýt testovací mock data pro scrollování",
 					"  /sidebar wider [delta]     — Zvětšit šířku panelu (výchozí: +4)",
 					"  /sidebar narrower [delta]  — Zmenšit šířku panelu (výchozí: -4)",
 					"  /sidebar width <16-60>     — Nastavit přesnou šířku panelu (výchozí: 28)",
@@ -405,50 +367,6 @@ export function registerSidebarCommands(
 						);
 					}
 					break;
-				}
-
-				case "mock": {
-					const val = value.toLowerCase();
-					if (val === "on" || val === "true" || val === "show") {
-						nextConfig.showMock = true;
-						ctx.ui.notify("Testovací mock data v panelu: ZAPNUTO", "info");
-					} else if (val === "off" || val === "false" || val === "hide") {
-						nextConfig.showMock = false;
-						ctx.ui.notify("Testovací mock data v panelu: VYPNUTO", "info");
-					} else {
-						nextConfig.showMock = !current.showMock;
-						ctx.ui.notify(
-							`Testovací mock data v panelu: ${nextConfig.showMock ? "ZAPNUTO" : "VYPNUTO"}`,
-							"info",
-						);
-					}
-					break;
-				}
-
-				case "scroll":
-				case "up":
-				case "down": {
-					const dir =
-						subcommand === "scroll" ? (rest[0] ?? "down").toLowerCase() : subcommand;
-					const count =
-						Number.parseInt(
-							subcommand === "scroll" ? (rest[1] ?? "3") : (rest[0] ?? "3"),
-							10,
-						) || 3;
-					if (dir === "top") {
-						onScrollTo?.(0);
-						ctx.ui.notify("Panel posunut na začátek", "info");
-					} else if (dir === "bottom") {
-						onScrollTo?.(9999);
-						ctx.ui.notify("Panel posunut na konec", "info");
-					} else if (dir === "up") {
-						onScrollBy?.(-count);
-						ctx.ui.notify(`Panel posunut nahoru o ${count} řádků`, "info");
-					} else {
-						onScrollBy?.(count);
-						ctx.ui.notify(`Panel posunut dolů o ${count} řádků`, "info");
-					}
-					return;
 				}
 
 				case "status": {

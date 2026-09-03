@@ -3,12 +3,7 @@ import type {
 	ExtensionContext,
 	Theme,
 } from "@earendil-works/pi-coding-agent";
-import {
-	type Component,
-	type OverlayHandle,
-	type TUI,
-	matchesKey,
-} from "@earendil-works/pi-tui";
+import type { Component, OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { registerSidebarCommands } from "./src/commands.js";
 import {
 	CONFIG_ENTRY_TYPE,
@@ -36,7 +31,6 @@ export default function (pi: ExtensionAPI): void {
 	let currentTheme: Theme | null = null;
 	let capturedFooterData: FooterDataProviderLike | null = null;
 	let unsubBranch: (() => void) | null = null;
-	let removeInputListener: (() => void) | null = null;
 
 	const refreshUI = () => {
 		if (currentTui && currentContext && currentTheme) {
@@ -115,137 +109,6 @@ export default function (pi: ExtensionAPI): void {
 		// Wrap the input editor so it stops before the sidebar
 		ctx.ui.setEditorComponent((t, th, kb) => new SidebarAwareEditor(t, th, kb));
 
-		// Hook direct keyboard & mouse wheel listener over sidebar region
-		if (!removeInputListener) {
-			try {
-				process.stdout.write("\x1b[?1000h\x1b[?1002h\x1b[?1006h");
-			} catch {
-				// Non-fatal
-			}
-
-			removeInputListener = tui.addInputListener((data: string) => {
-				const active = getActiveConfig();
-				if (!active.enabled) return undefined;
-
-				// 1. Direct Keyboard Shortcut Interception (prevents transcript hijacking)
-				if (
-					matchesKey(data, "ctrl+shift+up") ||
-					data === "\x1b[1;6A" ||
-					data.includes("\x1b[1;6A") ||
-					matchesKey(data, "ctrl+shift+u")
-				) {
-					scrollSidebar(-3);
-					return { consume: true };
-				}
-
-				if (
-					matchesKey(data, "ctrl+shift+down") ||
-					data === "\x1b[1;6B" ||
-					data.includes("\x1b[1;6B") ||
-					matchesKey(data, "ctrl+shift+d")
-				) {
-					scrollSidebar(3);
-					return { consume: true };
-				}
-
-				if (
-					matchesKey(data, "ctrl+shift+pageUp") ||
-					data === "\x1b[5;6~" ||
-					data.includes("\x1b[5;6~")
-				) {
-					scrollSidebar(-10);
-					return { consume: true };
-				}
-
-				if (
-					matchesKey(data, "ctrl+shift+pageDown") ||
-					data === "\x1b[6;6~" ||
-					data.includes("\x1b[6;6~")
-				) {
-					scrollSidebar(10);
-					return { consume: true };
-				}
-
-				if (
-					matchesKey(data, "ctrl+shift+right") ||
-					data === "\x1b[1;6C" ||
-					data.includes("\x1b[1;6C")
-				) {
-					if (currentContext) resizeSidebar(4, currentContext);
-					return { consume: true };
-				}
-
-				if (
-					matchesKey(data, "ctrl+shift+left") ||
-					data === "\x1b[1;6D" ||
-					data.includes("\x1b[1;6D")
-				) {
-					if (currentContext) resizeSidebar(-4, currentContext);
-					return { consume: true };
-				}
-
-				// 2. SGR Mouse Protocol: \x1b[<button;col;row;M or m
-				const sgrMatches = Array.from(
-					data.matchAll(/\x1b\[<(\d+);(\d+);(\d+)([Mm])/g),
-				);
-				if (sgrMatches.length > 0) {
-					const termWidth = tui.terminal?.columns || process.stdout?.columns || 80;
-					const sidebarStartCol = Math.max(1, termWidth - active.width + 1);
-
-					for (const match of sgrMatches) {
-						const button = Number.parseInt(match[1], 10);
-						const col = Number.parseInt(match[2], 10);
-
-						if (col >= sidebarStartCol && col <= termWidth) {
-							// Button 64 = wheel up, 65 = wheel down (with optional modifier bits: 68, 72 / 69, 73)
-							if (
-								button === 64 ||
-								button === 68 ||
-								button === 72 ||
-								(button >= 64 && (button & 64) !== 0 && (button & 1) === 0)
-							) {
-								scrollSidebar(-3);
-								return { consume: true };
-							}
-							if (
-								button === 65 ||
-								button === 69 ||
-								button === 73 ||
-								(button >= 64 && (button & 64) !== 0 && (button & 1) === 1)
-							) {
-								scrollSidebar(3);
-								return { consume: true };
-							}
-						}
-					}
-				}
-
-				// 3. Normal X10 / UTF-8 Mouse Protocol: \x1b[M <cb+32> <cx+32> <cy+32>
-				if (data.includes("\x1b[M")) {
-					const idx = data.indexOf("\x1b[M");
-					if (data.length >= idx + 6) {
-						const cb = data.charCodeAt(idx + 3) - 32;
-						const cx = data.charCodeAt(idx + 4) - 32;
-						const termWidth = tui.terminal?.columns || process.stdout?.columns || 80;
-						const sidebarStartCol = Math.max(1, termWidth - active.width + 1);
-
-						if (cx >= sidebarStartCol && cx <= termWidth) {
-							if (cb === 64 || cb === 96) {
-								scrollSidebar(-3);
-								return { consume: true };
-							}
-							if (cb === 65 || cb === 97) {
-								scrollSidebar(3);
-								return { consume: true };
-							}
-						}
-					}
-				}
-
-				return undefined;
-			});
-		}
-
 		pollActiveQuotas();
 		tui.requestRender();
 	}
@@ -274,13 +137,6 @@ export default function (pi: ExtensionAPI): void {
 			applySidebar(currentTui, ctx, currentTheme, next);
 		}
 		ctx.ui.notify(`Šířka postranního panelu: ${newWidth} sloupců`, "info");
-	}
-
-	function scrollSidebar(delta: number): void {
-		if (sidebarComponent && currentTui) {
-			sidebarComponent.scrollBy(delta);
-			currentTui.requestRender();
-		}
 	}
 
 	// 1. Session start lifecycle hook
@@ -355,17 +211,13 @@ export default function (pi: ExtensionAPI): void {
 			overlayHandle.hide();
 			overlayHandle = null;
 		}
-		if (removeInputListener) {
-			removeInputListener();
-			removeInputListener = null;
-		}
 		unsubBranch?.();
 		unsubBranch = null;
 		sidebarComponent = null;
 		currentTui = null;
 	});
 
-	// 4. Keyboard shortcuts for collapsing, resizing, and vertical scrolling
+	// 4. Keyboard shortcuts for collapsing and resizing
 	pi.registerShortcut("ctrl+shift+b", {
 		description: "Přepnout sbalení / rozbalení postranního panelu («)",
 		handler: (ctx) => {
@@ -387,64 +239,10 @@ export default function (pi: ExtensionAPI): void {
 		},
 	});
 
-	pi.registerShortcut("ctrl+shift+up", {
-		description: "Posunout postranní panel nahoru (-3 řádky)",
-		handler: () => {
-			scrollSidebar(-3);
-		},
-	});
-
-	pi.registerShortcut("ctrl+shift+down", {
-		description: "Posunout postranní panel dolů (+3 řádky)",
-		handler: () => {
-			scrollSidebar(3);
-		},
-	});
-
-	pi.registerShortcut("ctrl+shift+u", {
-		description: "Posunout postranní panel nahoru (-3 řádky)",
-		handler: () => {
-			scrollSidebar(-3);
-		},
-	});
-
-	pi.registerShortcut("ctrl+shift+d", {
-		description: "Posunout postranní panel dolů (+3 řádky)",
-		handler: () => {
-			scrollSidebar(3);
-		},
-	});
-
-	pi.registerShortcut("ctrl+shift+pageUp", {
-		description: "Posunout postranní panel o stránku nahoru (-10 řádků)",
-		handler: () => {
-			scrollSidebar(-10);
-		},
-	});
-
-	pi.registerShortcut("ctrl+shift+pageDown", {
-		description: "Posunout postranní panel o stránku dolů (+10 řádků)",
-		handler: () => {
-			scrollSidebar(10);
-		},
-	});
-
 	// 5. Slash command controller
-	registerSidebarCommands(
-		pi,
-		(newConfig, ctx) => {
-			if (currentTui && currentTheme) {
-				applySidebar(currentTui, ctx, currentTheme, newConfig);
-			}
-		},
-		(delta) => {
-			scrollSidebar(delta);
-		},
-		(offset) => {
-			if (sidebarComponent && currentTui) {
-				sidebarComponent.scrollTo(offset);
-				currentTui.requestRender();
-			}
-		},
-	);
+	registerSidebarCommands(pi, (newConfig, ctx) => {
+		if (currentTui && currentTheme) {
+			applySidebar(currentTui, ctx, currentTheme, newConfig);
+		}
+	});
 }

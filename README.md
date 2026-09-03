@@ -46,10 +46,6 @@ Provides an elegant, non-intrusive vertical sidebar docked to the right edge of 
 | `ctrl+shift+b` | **Toggle Collapse** | Collapse (`«`) or expand sidebar overlay |
 | `ctrl+shift+right` | **Wider** | Increase sidebar column width (+4 columns) |
 | `ctrl+shift+left` | **Narrower** | Decrease sidebar column width (-4 columns) |
-| `ctrl+shift+u` | **Scroll Up** | Scroll sidebar upward (-3 lines) |
-| `ctrl+shift+d` | **Scroll Down** | Scroll sidebar downward (+3 lines) |
-| `ctrl+shift+pageUp` | **Page Up** | Scroll sidebar page up (-10 lines) |
-| `ctrl+shift+pageDown` | **Page Down** | Scroll sidebar page down (+10 lines) |
 
 ---
 
@@ -60,8 +56,9 @@ Control the sidebar at any time using the `/sidebar` slash command:
 ```text
 /sidebar on|off|toggle     — Toggle collapse / expand
 /sidebar collapse|expand   — Explicitly collapse or expand
-/sidebar scroll <up|down|top|bottom> [lines] — Scroll sidebar vertically
-/sidebar extensions on|off — Toggle all statusline extension items in sidebar
+/sidebar mcp on|off        — Toggle MCP servers section
+/sidebar lsp on|off        — Toggle LSP section
+/sidebar extensions on|off — Toggle remaining extension statuses
 /sidebar wider [delta]     — Increase column width (default: +4)
 /sidebar narrower [delta]  — Decrease column width (default: -4)
 /sidebar width <16-60>     — Set exact column width (default: 28)

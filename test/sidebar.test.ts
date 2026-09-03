@@ -27,7 +27,6 @@ test("DEFAULT_CONFIG has valid OpenCode defaults", () => {
 	assert.equal(DEFAULT_CONFIG.showMcp, true);
 	assert.equal(DEFAULT_CONFIG.showLsp, true);
 	assert.equal(DEFAULT_CONFIG.showExtensions, true);
-	assert.equal(DEFAULT_CONFIG.showMock, true);
 	assert.equal(DEFAULT_CONFIG.showGit, true);
 });
 
@@ -88,7 +87,7 @@ test("getGitInfo returns branch information in git directory", () => {
 	assert.equal(typeof info.behind, "number");
 });
 
-test("SidebarComponent handles scrolling offset bounds", () => {
+test("SidebarComponent renders lines cleanly", () => {
 	const mockTui: any = { terminal: { rows: 24, columns: 80 } };
 	const mockPi: any = {
 		getActiveTools: () => [],
@@ -106,16 +105,9 @@ test("SidebarComponent handles scrolling offset bounds", () => {
 	};
 
 	const sidebar = new SidebarComponent(mockTui, mockPi, mockCtx, mockTheme);
-	assert.equal(sidebar.getScrollOffset(), 0);
-
-	sidebar.scrollBy(5);
-	assert.equal(sidebar.getScrollOffset(), 5);
-
-	sidebar.scrollBy(-10);
-	assert.equal(sidebar.getScrollOffset(), 0);
-
-	sidebar.scrollTo(12);
-	assert.equal(sidebar.getScrollOffset(), 12);
+	const rendered = sidebar.render(28);
+	assert.equal(Array.isArray(rendered), true);
+	assert.ok(rendered.length > 0);
 });
 
 test("getActiveConfig and setActiveConfig update active state", () => {

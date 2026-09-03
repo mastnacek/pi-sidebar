@@ -108,7 +108,6 @@ export class SidebarComponent implements Component {
 	private ctx: ExtensionContext;
 	private theme: Theme;
 	private sessionStartIso: string;
-	private scrollOffset = 0;
 	private footerData: FooterDataProviderLike | null = null;
 
 	constructor(tui: TUI, pi: ExtensionAPI, ctx: ExtensionContext, theme: Theme) {
@@ -129,21 +128,6 @@ export class SidebarComponent implements Component {
 
 	updateFooterData(footerData: FooterDataProviderLike | null): void {
 		this.footerData = footerData;
-	}
-
-	scrollBy(delta: number): number {
-		this.scrollOffset += delta;
-		if (this.scrollOffset < 0) this.scrollOffset = 0;
-		return this.scrollOffset;
-	}
-
-	scrollTo(offset: number): number {
-		this.scrollOffset = Math.max(0, offset);
-		return this.scrollOffset;
-	}
-
-	getScrollOffset(): number {
-		return this.scrollOffset;
 	}
 
 	invalidate(): void {
@@ -457,10 +441,9 @@ export class SidebarComponent implements Component {
 				topLines.push("");
 			}
 
-			// 8. Remaining Extension Statuses & Mock items for testing scrolling
-			const allExtItems: string[] = [];
-
+			// 8. Remaining Extension Statuses (toggled via /sidebar extensions on|off)
 			if (config.showExtensions && otherExtEntries.length > 0) {
+				topLines.push(header("ROZŠÍŘENÍ", "🧩"));
 				for (const [key, rawVal] of otherExtEntries.sort(([a], [b]) =>
 					a.localeCompare(b),
 				)) {
@@ -487,52 +470,8 @@ export class SidebarComponent implements Component {
 						else if (key.includes("tts") || key.includes("sound")) prefix = "🔊 ";
 						fullItem = `${prefix}${cleaned}`;
 					}
-					allExtItems.push(fullItem);
-				}
-			}
 
-			if (config.showMock) {
-				const mockSampleItems = [
-					"🌐 prompt-translate: cs -> en (auto)",
-					"📋 spai: 4 v řešení, 2 čekající, 12 hotovo",
-					"🛡️ solo-radar: 3 aktivní doktríny ADR",
-					"🤖 subagents: 2 aktivní (reviewer, scout)",
-					"📁 projects: 152 indexovaných projektů",
-					"🔊 tts: cs-CZ-AntoninNeural (Edge)",
-					"🔒 anonymizer: 4 aktivní filtry (API, IP)",
-					"📝 notes: 8 zaznamenaných poznámek",
-					"🎯 telemetry: prompt cache 99.2% zásah",
-					"🔍 ast-grep: 42 pravidel aktivních",
-					"💡 ideas: 5 nápadů v backlogu",
-					"🧪 tests: 11/11 subtestů úspěšných",
-					"📦 packages: 14 balíčků aktuálních",
-					"⚡ benchmarks: latency 16ms, differential ok",
-					"✨ memory: 240 MB RSS (stabilní)",
-					"🚀 build: rollup / tsc zero errors",
-					"📊 metrics: 1.2M tokens streamed",
-					"🌐 network: 0 connection drops",
-					"🛡️ guardrails: security checks passed",
-					"🔍 symbol-search: 1284 symbols indexed",
-					"📈 performance: 60 fps TUI render tick",
-					"🧩 extensions: 13 modules active",
-					"🖥️ terminal: xterm-256color SGR mouse",
-					"⚡ latency: 12ms round-trip to API",
-					"✨ status: all systems operational",
-				];
-				for (const m of mockSampleItems) {
-					const prefixKey = m.slice(0, 4);
-					if (allExtItems.some((e) => e.startsWith(prefixKey))) {
-						allExtItems.push(m);
-					} else {
-						allExtItems.push(m);
-					}
-				}
-			}
-
-			if (allExtItems.length > 0) {
-				topLines.push(header("ROZŠÍŘENÍ", "🧩"));
-				for (const item of allExtItems) {
-					for (const wrapped of this.wrapText(item, innerWidth)) {
+					for (const wrapped of this.wrapText(fullItem, innerWidth)) {
 						topLines.push(muted(wrapped));
 					}
 				}
@@ -661,7 +600,6 @@ export class SidebarComponent implements Component {
 		// =========================================================================
 		bottomLines.push(header("ZKRATKY", "⌨️"));
 		bottomLines.push(dim("⌨️ ctrl+shift+b    « sbalit/rozbalit"));
-		bottomLines.push(dim("⌨️ ctrl+shift+u/d  posun (±3)"));
 		bottomLines.push(dim("⌨️ ctrl+shift+←/→  šířka (±4)"));
 		bottomLines.push("");
 
@@ -677,16 +615,12 @@ export class SidebarComponent implements Component {
 		bottomLines.push(success(brandingText));
 
 		// =========================================================================
-		// Assemble All Content & Apply Independent Vertical Scrolling
+		// Assemble All Content
 		// =========================================================================
-		const contentLines = [...topLines, ...bottomLines];
-		const totalLines = contentLines.length;
+		const totalLines = topLines.length + bottomLines.length;
 		const effectiveRows = this.tui.terminal?.rows || process.stdout?.rows || 24;
 		const viewportHeight =
 			effectiveRows > 0 ? effectiveRows : Math.max(totalLines, 24);
-
-		const maxScroll = Math.max(0, totalLines - viewportHeight);
-		this.scrollOffset = Math.max(0, Math.min(maxScroll, this.scrollOffset));
 
 		let visibleLines: string[];
 		if (totalLines <= viewportHeight) {
@@ -697,34 +631,12 @@ export class SidebarComponent implements Component {
 				...bottomLines,
 			];
 		} else {
-			visibleLines = contentLines.slice(
-				this.scrollOffset,
-				this.scrollOffset + viewportHeight,
-			);
+			visibleLines = [...topLines, ...bottomLines];
 		}
 
-		// Calculate scrollbar thumb when content overflows viewport
-		let thumbStart = -1;
-		let thumbEnd = -1;
-		if (maxScroll > 0 && totalLines > 0) {
-			const thumbHeight = Math.max(
-				1,
-				Math.round((viewportHeight / totalLines) * viewportHeight),
-			);
-			thumbStart = Math.round(
-				(this.scrollOffset / maxScroll) * (viewportHeight - thumbHeight),
-			);
-			thumbEnd = thumbStart + thumbHeight;
-		}
-
-		return visibleLines.map((content, idx) => {
-			const isThumb = thumbStart >= 0 && idx >= thumbStart && idx < thumbEnd;
+		return visibleLines.map((content) => {
 			const border =
-				config.borderStyle === "none"
-					? ""
-					: isThumb
-						? th.fg("accent", "┃ ")
-						: th.fg("border", borderPrefix);
+				config.borderStyle === "none" ? "" : th.fg("border", borderPrefix);
 
 			const lineWithoutBorder = content;
 			const lineVisWidth = visibleWidth(lineWithoutBorder);

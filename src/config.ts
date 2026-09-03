@@ -33,7 +33,6 @@ export const DEFAULT_CONFIG: SidebarConfig = {
 	showMcp: true,
 	showLsp: true,
 	showExtensions: true,
-	showMock: true,
 	showGit: true,
 };
 
@@ -236,11 +235,6 @@ export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 			sessionCfg?.showExtensions,
 			globalCfg.showExtensions,
 			DEFAULT_CONFIG.showExtensions,
-		),
-		showMock: resolveBoolean(
-			sessionCfg?.showMock,
-			globalCfg.showMock,
-			DEFAULT_CONFIG.showMock,
 		),
 		showGit: resolveBoolean(
 			sessionCfg?.showGit,
