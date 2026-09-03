@@ -508,10 +508,22 @@ export class SidebarComponent implements Component {
 					"📦 packages: 14 balíčků aktuálních",
 					"⚡ benchmarks: latency 16ms, differential ok",
 					"✨ memory: 240 MB RSS (stabilní)",
+					"🚀 build: rollup / tsc zero errors",
+					"📊 metrics: 1.2M tokens streamed",
+					"🌐 network: 0 connection drops",
+					"🛡️ guardrails: security checks passed",
+					"🔍 symbol-search: 1284 symbols indexed",
+					"📈 performance: 60 fps TUI render tick",
+					"🧩 extensions: 13 modules active",
+					"🖥️ terminal: xterm-256color SGR mouse",
+					"⚡ latency: 12ms round-trip to API",
+					"✨ status: all systems operational",
 				];
 				for (const m of mockSampleItems) {
 					const prefixKey = m.slice(0, 4);
-					if (!allExtItems.some((e) => e.startsWith(prefixKey))) {
+					if (allExtItems.some((e) => e.startsWith(prefixKey))) {
+						allExtItems.push(m);
+					} else {
 						allExtItems.push(m);
 					}
 				}
@@ -667,39 +679,37 @@ export class SidebarComponent implements Component {
 		// =========================================================================
 		// Assemble All Content & Apply Independent Vertical Scrolling
 		// =========================================================================
-		const totalLines = topLines.length + bottomLines.length;
+		const contentLines = [...topLines, ...bottomLines];
+		const totalLines = contentLines.length;
 		const effectiveRows = this.tui.terminal?.rows || process.stdout?.rows || 24;
 		const viewportHeight =
 			effectiveRows > 0 ? effectiveRows : Math.max(totalLines, 24);
 
-		let allContentLines: string[];
+		const maxScroll = Math.max(0, totalLines - viewportHeight);
+		this.scrollOffset = Math.max(0, Math.min(maxScroll, this.scrollOffset));
+
+		let visibleLines: string[];
 		if (totalLines <= viewportHeight) {
 			const emptyMiddleRows = Math.max(0, viewportHeight - totalLines);
-			allContentLines = [
+			visibleLines = [
 				...topLines,
 				...Array.from({ length: emptyMiddleRows }, () => ""),
 				...bottomLines,
 			];
 		} else {
-			allContentLines = [...topLines, ...bottomLines];
+			visibleLines = contentLines.slice(
+				this.scrollOffset,
+				this.scrollOffset + viewportHeight,
+			);
 		}
-
-		const totalContentCount = allContentLines.length;
-		const maxScroll = Math.max(0, totalContentCount - viewportHeight);
-		this.scrollOffset = Math.max(0, Math.min(maxScroll, this.scrollOffset));
-
-		const visibleLines = allContentLines.slice(
-			this.scrollOffset,
-			this.scrollOffset + viewportHeight,
-		);
 
 		// Calculate scrollbar thumb when content overflows viewport
 		let thumbStart = -1;
 		let thumbEnd = -1;
-		if (maxScroll > 0 && totalContentCount > 0) {
+		if (maxScroll > 0 && totalLines > 0) {
 			const thumbHeight = Math.max(
 				1,
-				Math.round((viewportHeight / totalContentCount) * viewportHeight),
+				Math.round((viewportHeight / totalLines) * viewportHeight),
 			);
 			thumbStart = Math.round(
 				(this.scrollOffset / maxScroll) * (viewportHeight - thumbHeight),

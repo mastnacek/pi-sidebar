@@ -189,8 +189,7 @@ export default function (pi: ExtensionAPI): void {
 					data.matchAll(/\x1b\[<(\d+);(\d+);(\d+)([Mm])/g),
 				);
 				if (sgrMatches.length > 0) {
-					const termWidth =
-						tui.terminal?.columns || process.stdout?.columns || 80;
+					const termWidth = tui.terminal?.columns || process.stdout?.columns || 80;
 					const sidebarStartCol = Math.max(1, termWidth - active.width + 1);
 
 					for (const match of sgrMatches) {
@@ -227,8 +226,7 @@ export default function (pi: ExtensionAPI): void {
 					if (data.length >= idx + 6) {
 						const cb = data.charCodeAt(idx + 3) - 32;
 						const cx = data.charCodeAt(idx + 4) - 32;
-						const termWidth =
-							tui.terminal?.columns || process.stdout?.columns || 80;
+						const termWidth = tui.terminal?.columns || process.stdout?.columns || 80;
 						const sidebarStartCol = Math.max(1, termWidth - active.width + 1);
 
 						if (cx >= sidebarStartCol && cx <= termWidth) {
