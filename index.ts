@@ -127,8 +127,7 @@ export default function (pi: ExtensionAPI): void {
 				if (sgrMatch) {
 					const button = Number.parseInt(sgrMatch[1], 10);
 					const col = Number.parseInt(sgrMatch[2], 10);
-					const termWidth =
-						tui.terminal?.columns || process.stdout?.columns || 80;
+					const termWidth = tui.terminal?.columns || process.stdout?.columns || 80;
 					const sidebarStartCol = termWidth - active.width + 1;
 
 					if (col >= sidebarStartCol && col <= termWidth) {
@@ -148,8 +147,7 @@ export default function (pi: ExtensionAPI): void {
 				if (data.startsWith("\x1b[M") && data.length >= 6) {
 					const cb = data.charCodeAt(3) - 32;
 					const cx = data.charCodeAt(4) - 32;
-					const termWidth =
-						tui.terminal?.columns || process.stdout?.columns || 80;
+					const termWidth = tui.terminal?.columns || process.stdout?.columns || 80;
 					const sidebarStartCol = termWidth - active.width + 1;
 
 					if (cx >= sidebarStartCol && cx <= termWidth) {

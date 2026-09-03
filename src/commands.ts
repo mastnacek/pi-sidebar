@@ -31,6 +31,7 @@ const COMMAND_DOCS: Record<string, string> = {
 	mcp: "přepnout zobrazení MCP serverů v panelu (on | off | toggle)",
 	lsp: "přepnout zobrazení LSP stavu v panelu (on | off | toggle)",
 	extensions: "přepnout zobrazení rozšíření v panelu (on | off | toggle)",
+	mock: "přepnout testovací mock data pro test scrollování (on | off | toggle)",
 	width: "nastavit přesnou šířku panelu v sloupcích (16-60)",
 	resize: "upravit šířku panelu (+N nebo -N)",
 	preset: "přepnout styl zobrazení (opencode | compact | detailed)",
@@ -84,7 +85,8 @@ export function registerSidebarCommands(
 					cmd === "extensions" ||
 					cmd === "statusline" ||
 					cmd === "mcp" ||
-					cmd === "lsp"
+					cmd === "lsp" ||
+					cmd === "mock"
 				) {
 					const extOptions = [
 						{
@@ -299,6 +301,7 @@ export function registerSidebarCommands(
 					"  /sidebar mcp on|off        — Zobrazit/skrýt sekci MCP serverů v panelu",
 					"  /sidebar lsp on|off        — Zobrazit/skrýt sekci LSP stavu v panelu",
 					"  /sidebar extensions on|off — Zobrazit/skrýt ostatní rozšíření v panelu",
+					"  /sidebar mock on|off       — Zobrazit/skrýt testovací mock data pro scrollování",
 					"  /sidebar wider [delta]     — Zvětšit šířku panelu (výchozí: +4)",
 					"  /sidebar narrower [delta]  — Zmenšit šířku panelu (výchozí: -4)",
 					"  /sidebar width <16-60>     — Nastavit přesnou šířku panelu (výchozí: 28)",
@@ -398,6 +401,24 @@ export function registerSidebarCommands(
 						nextConfig.showExtensions = !current.showExtensions;
 						ctx.ui.notify(
 							`Zobrazení rozšíření v panelu: ${nextConfig.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
+							"info",
+						);
+					}
+					break;
+				}
+
+				case "mock": {
+					const val = value.toLowerCase();
+					if (val === "on" || val === "true" || val === "show") {
+						nextConfig.showMock = true;
+						ctx.ui.notify("Testovací mock data v panelu: ZAPNUTO", "info");
+					} else if (val === "off" || val === "false" || val === "hide") {
+						nextConfig.showMock = false;
+						ctx.ui.notify("Testovací mock data v panelu: VYPNUTO", "info");
+					} else {
+						nextConfig.showMock = !current.showMock;
+						ctx.ui.notify(
+							`Testovací mock data v panelu: ${nextConfig.showMock ? "ZAPNUTO" : "VYPNUTO"}`,
 							"info",
 						);
 					}

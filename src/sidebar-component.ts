@@ -457,9 +457,10 @@ export class SidebarComponent implements Component {
 				topLines.push("");
 			}
 
-			// 8. Remaining Extension Statuses (toggled via /sidebar extensions on|off)
+			// 8. Remaining Extension Statuses & Mock items for testing scrolling
+			const allExtItems: string[] = [];
+
 			if (config.showExtensions && otherExtEntries.length > 0) {
-				topLines.push(header("ROZŠÍŘENÍ", "🧩"));
 				for (const [key, rawVal] of otherExtEntries.sort(([a], [b]) =>
 					a.localeCompare(b),
 				)) {
@@ -486,8 +487,40 @@ export class SidebarComponent implements Component {
 						else if (key.includes("tts") || key.includes("sound")) prefix = "🔊 ";
 						fullItem = `${prefix}${cleaned}`;
 					}
+					allExtItems.push(fullItem);
+				}
+			}
 
-					for (const wrapped of this.wrapText(fullItem, innerWidth)) {
+			if (config.showMock) {
+				const mockSampleItems = [
+					"🌐 prompt-translate: cs -> en (auto)",
+					"📋 spai: 4 v řešení, 2 čekající, 12 hotovo",
+					"🛡️ solo-radar: 3 aktivní doktríny ADR",
+					"🤖 subagents: 2 aktivní (reviewer, scout)",
+					"📁 projects: 152 indexovaných projektů",
+					"🔊 tts: cs-CZ-AntoninNeural (Edge)",
+					"🔒 anonymizer: 4 aktivní filtry (API, IP)",
+					"📝 notes: 8 zaznamenaných poznámek",
+					"🎯 telemetry: prompt cache 99.2% zásah",
+					"🔍 ast-grep: 42 pravidel aktivních",
+					"💡 ideas: 5 nápadů v backlogu",
+					"🧪 tests: 11/11 subtestů úspěšných",
+					"📦 packages: 14 balíčků aktuálních",
+					"⚡ benchmarks: latency 16ms, differential ok",
+					"✨ memory: 240 MB RSS (stabilní)",
+				];
+				for (const m of mockSampleItems) {
+					const prefixKey = m.slice(0, 4);
+					if (!allExtItems.some((e) => e.startsWith(prefixKey))) {
+						allExtItems.push(m);
+					}
+				}
+			}
+
+			if (allExtItems.length > 0) {
+				topLines.push(header("ROZŠÍŘENÍ", "🧩"));
+				for (const item of allExtItems) {
+					for (const wrapped of this.wrapText(item, innerWidth)) {
 						topLines.push(muted(wrapped));
 					}
 				}
@@ -635,8 +668,7 @@ export class SidebarComponent implements Component {
 		// Assemble All Content & Apply Independent Vertical Scrolling
 		// =========================================================================
 		const totalLines = topLines.length + bottomLines.length;
-		const effectiveRows =
-			this.tui.terminal?.rows || process.stdout?.rows || 24;
+		const effectiveRows = this.tui.terminal?.rows || process.stdout?.rows || 24;
 		const viewportHeight =
 			effectiveRows > 0 ? effectiveRows : Math.max(totalLines, 24);
 

@@ -23,6 +23,7 @@ export interface SidebarConfig {
 	showMcp: boolean;
 	showLsp: boolean;
 	showExtensions: boolean;
+	showMock: boolean;
 	showGit: boolean;
 }
 
