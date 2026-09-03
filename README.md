@@ -16,6 +16,7 @@ Provides an elegant, non-intrusive vertical sidebar docked to the right edge of 
   - `opencode`: Classic OpenCode sidebar layout.
   - `compact`: Minimal vertical line layout.
   - `detailed`: Full telemetry dashboard (Model & thinking levels with emojis, context progress bar, cache hit rates, token breakdown, and live Kimi / Z.ai quota meters).
+  - `minimal`: Narrow gauge strip (~10 columns) — circular braille context ring with percentage, thinking emoji, colored quota mini-bar, git/MCP/LSP readiness dots. No text duplication with the footer.
 - **Top Session Banner**: Shows timestamp (`New session • HH:mm`) or active session title.
 - **Model & Reasoning Telemetry**: Displays model ID, provider, and active thinking level emoji (`💤`, `🔹`, `🧊`, `⚡`, `🧠`, `🔥`, `🌋`).
 - **Real-Time Context & Cost Meter**:

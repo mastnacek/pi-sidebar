@@ -100,7 +100,7 @@ function resolvePreset(
 	globalVal?: string,
 	fallback: SidebarPreset = "opencode",
 ): SidebarPreset {
-	const valid: SidebarPreset[] = ["opencode", "compact", "detailed"];
+	const valid: SidebarPreset[] = ["opencode", "compact", "detailed", "minimal"];
 	if (sessionVal && valid.includes(sessionVal as SidebarPreset))
 		return sessionVal as SidebarPreset;
 	if (globalVal && valid.includes(globalVal as SidebarPreset))
@@ -169,7 +169,7 @@ export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 			sessionCfg?.width,
 			globalCfg.width,
 			DEFAULT_CONFIG.width,
-			16,
+			8,
 			60,
 		),
 		minTerminalWidth: resolveNumber(

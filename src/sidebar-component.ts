@@ -13,6 +13,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getActiveConfig } from "./config.js";
 import { formatProjectPath, getGitInfo } from "./git.js";
+import { ringGauge } from "./gauge.js";
 import {
 	contextBar,
 	formatResetTime,
@@ -227,9 +228,108 @@ export class SidebarComponent implements Component {
 					: success;
 
 		// =========================================================================
+		// PRESET: MINIMAL (Narrow gauge strip — ~10 columns, indicators only)
+		// =========================================================================
+		if (config.preset === "minimal") {
+			const center = (s: string) => {
+				const padLen = Math.max(0, innerWidth - visibleWidth(s));
+				return `${" ".repeat(Math.floor(padLen / 2))}${s}`;
+			};
+
+			// 1. Context ring gauge + percent
+			if (config.showContext) {
+				const ringW = Math.max(3, Math.min(5, innerWidth));
+				for (const row of ringGauge(percentValue ?? 0, ringW, 3)) {
+					topLines.push(ctxColor(center(row)));
+				}
+				const pctStr =
+					percentValue === null ? "?%" : `${Math.round(percentValue)}%`;
+				topLines.push(ctxColor(center(pctStr)));
+				if (stats.totalCost > 0) {
+					topLines.push(dim(center(`$${stats.totalCost.toFixed(2)}`)));
+				}
+				topLines.push("");
+			}
+
+			// 2. Thinking level emoji (model indicator)
+			if (config.showModel && model) {
+				const level = this.pi.getThinkingLevel() || "off";
+				topLines.push(center(THINKING_EMOJI[level] ?? "🧠"));
+				topLines.push("");
+			}
+
+			// 3. Quota mini meter (worst of the active provider's windows)
+			if (config.showQuota) {
+				const isKimi = model?.provider === "kimi-coding";
+				const isZai =
+					model?.provider === "zai-coding-cn" || model?.provider === "zai-coding";
+				const qColor = (p: number) => (p > 90 ? error : p > 70 ? warning : success);
+
+				let qPct: number | null = null;
+				if (isKimi && getKimiQuotas()?.usage) {
+					const kimi = getKimiQuotas()!;
+					const used = Number(kimi.usage?.used ?? 0);
+					const limit = Number(kimi.usage?.limit ?? 0);
+					qPct = limit > 0 ? (used / limit) * 100 : 0;
+				} else if (isZai && getZaiQuotas()?.limits?.length) {
+					const zLimits = getZaiQuotas()!.limits!;
+					qPct = Math.max(
+						...zLimits
+							.filter((l) => typeof l.percentage === "number")
+							.map((l) => l.percentage as number),
+						0,
+					);
+				}
+
+				if (qPct !== null) {
+					const c = qColor(qPct);
+					topLines.push(c(center(contextBar(qPct, 4))));
+					topLines.push(c(center(`${Math.round(qPct)}%`)));
+					topLines.push("");
+				}
+			}
+
+			// 4. Git status dot
+			if (config.showGit) {
+				const gitInfo = getGitInfo(this.ctx.cwd);
+				if (gitInfo.branch) {
+					topLines.push(center(gitInfo.dirty ? warning("●") : success("○")));
+					if (gitInfo.ahead > 0) topLines.push(accent(center(`↑${gitInfo.ahead}`)));
+					if (gitInfo.behind > 0) topLines.push(dim(center(`↓${gitInfo.behind}`)));
+					topLines.push("");
+				}
+			}
+
+			// 5. MCP / LSP readiness dots
+			if (config.showMcp || config.showLsp) {
+				let activeTools: string[] = [];
+				try {
+					activeTools = this.pi.getActiveTools();
+				} catch {
+					// Non-fatal
+				}
+
+				if (config.showMcp) {
+					const hasMcp = activeTools.some(
+						(t) =>
+							t.startsWith("mcp_") ||
+							t.startsWith("mcp__") ||
+							t.startsWith("knowledge_base") ||
+							t.startsWith("lotusscript_lsp"),
+					);
+					topLines.push(center(hasMcp ? success("●") : dim("○")));
+				}
+				if (config.showLsp) {
+					const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
+					topLines.push(center(servers.length > 0 ? success("●") : dim("○")));
+				}
+			}
+		}
+
+		// =========================================================================
 		// PRESET: DETAILED (Full, comprehensive vertical telemetry)
 		// =========================================================================
-		if (config.preset === "detailed") {
+		else if (config.preset === "detailed") {
 			// 1. Session Section
 			if (config.showSession) {
 				topLines.push(header("RELACE", "🏷️"));
@@ -564,9 +664,9 @@ export class SidebarComponent implements Component {
 		}
 
 		// =========================================================================
-		// Bottom Section: Git & Workspace
+		// Bottom Section: Git & Workspace (hidden in minimal gauge strip)
 		// =========================================================================
-		if (config.showGit) {
+		if (config.showGit && config.preset !== "minimal") {
 			const cwd = this.ctx.cwd;
 			const gitInfo = getGitInfo(cwd);
 			const formattedPath = formatProjectPath(cwd, gitInfo.branch);
@@ -596,23 +696,25 @@ export class SidebarComponent implements Component {
 		}
 
 		// =========================================================================
-		// Permanent Shortcut Hints Section
+		// Permanent Shortcut Hints Section (hidden in minimal gauge strip)
 		// =========================================================================
-		bottomLines.push(header("ZKRATKY", "⌨️"));
-		bottomLines.push(dim("⌨️ ctrl+shift+b    « sbalit/rozbalit"));
-		bottomLines.push(dim("⌨️ ctrl+shift+←/→  šířka (±4)"));
-		bottomLines.push("");
+		if (config.preset !== "minimal") {
+			bottomLines.push(header("ZKRATKY", "⌨️"));
+			bottomLines.push(dim("⌨️ ctrl+shift+b    « sbalit/rozbalit"));
+			bottomLines.push(dim("⌨️ ctrl+shift+←/→  šířka (±4)"));
+			bottomLines.push("");
 
-		// =========================================================================
-		// Branding Footer
-		// =========================================================================
-		let brandingText = "• OpenCode 1.18.26";
-		if (config.branding === "pi") {
-			brandingText = "• Pi Agent v0.84.4";
-		} else if (config.branding === "custom" && config.customBrandingText) {
-			brandingText = `• ${config.customBrandingText}`;
+			// =====================================================================
+			// Branding Footer
+			// =====================================================================
+			let brandingText = "• OpenCode 1.18.26";
+			if (config.branding === "pi") {
+				brandingText = "• Pi Agent v0.84.4";
+			} else if (config.branding === "custom" && config.customBrandingText) {
+				brandingText = `• ${config.customBrandingText}`;
+			}
+			bottomLines.push(success(brandingText));
 		}
-		bottomLines.push(success(brandingText));
 
 		// =========================================================================
 		// Assemble All Content

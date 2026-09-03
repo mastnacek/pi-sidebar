@@ -8,6 +8,7 @@ import {
 import { formatProjectPath, getGitInfo } from "../src/git.js";
 import { contextBar, formatResetTime } from "../src/quota.js";
 import { SidebarComponent } from "../src/sidebar-component.js";
+import { isBrailleRow, ringGauge } from "../src/gauge.js";
 import {
 	formatCost,
 	formatPercent,
@@ -121,5 +122,70 @@ test("getActiveConfig and setActiveConfig update active state", () => {
 	assert.equal(getActiveConfig().width, 32);
 	assert.equal(getActiveConfig().preset, "detailed");
 	assert.equal(getActiveConfig().showExtensions, true);
+	setActiveConfig(DEFAULT_CONFIG);
+});
+
+test("ringGauge renders braille rows of correct dimensions", () => {
+	const rows = ringGauge(50, 5, 3);
+	assert.equal(rows.length, 3);
+	for (const row of rows) {
+		assert.equal(row.length, 5);
+		assert.ok(isBrailleRow(row), `not braille: ${row}`);
+	}
+});
+
+test("ringGauge fills proportionally to percent", () => {
+	const filledCount = (s: string) =>
+		[...s].filter((ch) => ch.codePointAt(0)! > 0x2800).length;
+	const empty = ringGauge(0, 5, 3).join("");
+	const full = ringGauge(100, 5, 3).join("");
+	assert.ok(filledCount(empty) === 0, "0% ring should be empty");
+	assert.ok(filledCount(full) > 10, "100% ring should fill the outline");
+	const half = ringGauge(50, 5, 3).join("");
+	assert.ok(
+		filledCount(half) > 0 && filledCount(half) < filledCount(full),
+		"50% ring should be partially filled",
+	);
+});
+
+test("SidebarComponent minimal preset renders gauge strip", () => {
+	const mockTui: any = { terminal: { rows: 24, columns: 80 } };
+	const mockPi: any = {
+		getActiveTools: () => [],
+		getThinkingLevel: () => "high",
+	};
+	const mockCtx: any = {
+		cwd: process.cwd(),
+		model: { id: "test-model", reasoning: true },
+		sessionManager: { getSessionName: () => "test", getEntries: () => [] },
+		getContextUsage: () => ({
+			percent: 42,
+			tokens: 84000,
+			contextWindow: 200000,
+		}),
+	};
+	const mockTheme: any = {
+		fg: (_: string, s: string) => s,
+		bg: (_: string, s: string) => s,
+	};
+
+	setActiveConfig({ ...DEFAULT_CONFIG, preset: "minimal", width: 10 });
+	const sidebar = new SidebarComponent(mockTui, mockPi, mockCtx, mockTheme);
+	const rendered = sidebar.render(10);
+	assert.ok(rendered.length > 0);
+
+	const all = rendered.join("\n");
+	// Ring gauge present (braille characters)
+	assert.ok(
+		[...all].some((ch) => ch.codePointAt(0)! >= 0x2800),
+		"expected braille ring characters",
+	);
+	// Percent shown
+	assert.ok(all.includes("42%"));
+	// Thinking emoji for 'high'
+	assert.ok(all.includes("🧠"));
+	// No shortcut hints or branding in minimal mode
+	assert.ok(!all.includes("ZKRATKY"));
+	assert.ok(!all.includes("OpenCode 1.18.26"));
 	setActiveConfig(DEFAULT_CONFIG);
 });

@@ -1,4 +1,4 @@
-export type SidebarPreset = "opencode" | "compact" | "detailed";
+export type SidebarPreset = "opencode" | "compact" | "detailed" | "minimal";
 export type SidebarBranding = "opencode" | "pi" | "custom";
 export type SidebarBorderStyle =
 	| "line"

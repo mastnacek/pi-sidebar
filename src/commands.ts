@@ -30,9 +30,9 @@ const COMMAND_DOCS: Record<string, string> = {
 	mcp: "přepnout zobrazení MCP serverů v panelu (on | off | toggle)",
 	lsp: "přepnout zobrazení LSP stavu v panelu (on | off | toggle)",
 	extensions: "přepnout zobrazení rozšíření v panelu (on | off | toggle)",
-	width: "nastavit přesnou šířku panelu v sloupcích (16-60)",
+	width: "nastavit přesnou šířku panelu v sloupcích (8-60)",
 	resize: "upravit šířku panelu (+N nebo -N)",
-	preset: "přepnout styl zobrazení (opencode | compact | detailed)",
+	preset: "přepnout styl zobrazení (opencode | compact | detailed | minimal)",
 	refresh: "vynutit aktualizaci kvót poskytovatelů (Kimi & Z.ai)",
 	branding: "přepnout text patičky (opencode | pi | custom)",
 	border:
@@ -109,6 +109,11 @@ export function registerSidebarCommands(
 				if (cmd === "width" || cmd === "resize") {
 					const widths = [
 						{
+							value: `${cmd} 10`,
+							label: `${cmd} 10`,
+							description: "Minimální pruh (10 sloupců, preset minimal)",
+						},
+						{
 							value: `${cmd} 24`,
 							label: `${cmd} 24`,
 							description: "Kompaktní šířka (24 sloupců)",
@@ -151,6 +156,11 @@ export function registerSidebarCommands(
 							value: "preset detailed",
 							label: "preset detailed",
 							description: "Kompletní telemetrie, kvóty a kontextový pruh",
+						},
+						{
+							value: "preset minimal",
+							label: "preset minimal",
+							description: "Úzký pruh ukazatelů — kruhový kontextový graf a tečky",
 						},
 					];
 					const filtered = presets.filter((i) =>
@@ -266,8 +276,8 @@ export function registerSidebarCommands(
 					"  /sidebar extensions on|off — Zobrazit/skrýt ostatní rozšíření v panelu",
 					"  /sidebar wider [delta]     — Zvětšit šířku panelu (výchozí: +4)",
 					"  /sidebar narrower [delta]  — Zmenšit šířku panelu (výchozí: -4)",
-					"  /sidebar width <16-60>     — Nastavit přesnou šířku panelu (výchozí: 28)",
-					"  /sidebar preset <název>    — Přepnout styl (opencode | compact | detailed)",
+					"  /sidebar width <8-60>      — Nastavit přesnou šířku panelu (výchozí: 28, minimal pruh: 10)",
+					"  /sidebar preset <název>    — Přepnout styl (opencode | compact | detailed | minimal)",
 					"  /sidebar refresh           — Vynutit obnovení kvót Kimi a Z.ai",
 					"  /sidebar branding <typ>    — Styl patičky (opencode | pi | custom <text>)",
 					"  /sidebar border <styl>     — Styl oddělovače (line | double | dotted | space | none)",
@@ -408,7 +418,7 @@ export function registerSidebarCommands(
 					if (value.startsWith("+") || value.startsWith("-")) {
 						const delta = Number.parseInt(value, 10);
 						if (!Number.isNaN(delta)) {
-							const newW = Math.max(16, Math.min(60, current.width + delta));
+							const newW = Math.max(8, Math.min(60, current.width + delta));
 							nextConfig.width = newW;
 							nextConfig.enabled = true;
 							ctx.ui.notify(`Šířka panelu: ${newW} sloupců`, "info");
@@ -416,9 +426,9 @@ export function registerSidebarCommands(
 						}
 					}
 					const num = Number.parseInt(value, 10);
-					if (Number.isNaN(num) || num < 16 || num > 60) {
+					if (Number.isNaN(num) || num < 8 || num > 60) {
 						ctx.ui.notify(
-							"Šířka musí být v rozmezí 16 až 60 sloupců (např. /sidebar resize +4 nebo /sidebar resize 32).",
+							"Šířka musí být v rozmezí 8 až 60 sloupců (např. /sidebar resize +4 nebo /sidebar resize 32).",
 							"warning",
 						);
 						return;
@@ -438,9 +448,9 @@ export function registerSidebarCommands(
 
 				case "width": {
 					const num = Number.parseInt(value, 10);
-					if (Number.isNaN(num) || num < 16 || num > 60) {
+					if (Number.isNaN(num) || num < 8 || num > 60) {
 						ctx.ui.notify(
-							"Šířka musí být číslo v rozmezí 16 až 60 sloupců (např. /sidebar width 28).",
+							"Šířka musí být číslo v rozmezí 8 až 60 sloupců (např. /sidebar width 28).",
 							"warning",
 						);
 						return;
@@ -453,15 +463,24 @@ export function registerSidebarCommands(
 
 				case "preset": {
 					const p = value.toLowerCase() as SidebarPreset;
-					if (!["opencode", "compact", "detailed"].includes(p)) {
+					if (!["opencode", "compact", "detailed", "minimal"].includes(p)) {
 						ctx.ui.notify(
-							"Neplatný styl. Vyberte: opencode, compact nebo detailed",
+							"Neplatný styl. Vyberte: opencode, compact, detailed nebo minimal",
 							"warning",
 						);
 						return;
 					}
 					nextConfig.preset = p;
-					ctx.ui.notify(`Styl postranního panelu nastaven na "${p}"`, "info");
+					// Minimal gauge strip needs a narrow width; other presets need room.
+					if (p === "minimal" && nextConfig.width > 12) {
+						nextConfig.width = 10;
+					} else if (p !== "minimal" && nextConfig.width < 16) {
+						nextConfig.width = 28;
+					}
+					ctx.ui.notify(
+						`Styl postranního panelu nastaven na "${p}" (šířka ${nextConfig.width} sloupců)`,
+						"info",
+					);
 					break;
 				}
 

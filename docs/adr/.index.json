@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-09-02T11:45:00.000Z",
+  "lastUpdated": "2026-09-03T06:53:53.962Z",
   "records": [
     {
       "id": "ADR-001",
@@ -24,6 +24,38 @@
       "date": "2026-09-02 13:30:00",
       "file": "2026-09-02-ADR-003-czech-parameter-menu-and-header-icon-polish.md",
       "constraint": "Czech Parameter Menu and Header Icon Polish: Localized COMMAND_DOCS, 2nd-level argument completions, notifications, and section headers (RELACE, MODEL, KONTEXT, TOKENY A CACHE, KVÓTY, ROZŠÍŘENÍ, NÁSTROJE / LSP, PRACOVNÍ PROSTOR, ZKRATKY) to Czech with dedicated icons and duplicate-emoji stripping.",
+      "status": "active"
+    },
+    {
+      "id": "ADR-004",
+      "title": "[master 399f78e] refactor: remove vertical scrolling feature and dead",
+      "date": "2026-09-03 08:21:12",
+      "file": "2026-09-03-ADR-004-master-399f78e-refactor-remove-vertical-scrolling-.md",
+      "constraint": "[master 399f78e] refactor: remove vertical scrolling feature and dead: warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'index.ts', LF will be replaced by CRLF the next time Git touches",
+      "status": "active"
+    },
+    {
+      "id": "ADR-005",
+      "title": "Architectural Workaround & Constraint",
+      "date": "2026-09-03 08:35:31",
+      "file": "2026-09-03-ADR-005-architectural-workaround-constraint.md",
+      "constraint": "Architectural Workaround & Constraint: A new sidebar value for pi-agent-studio.ui routes Pi: Open / Open Here and the Sessions view to it\r - Mermaid & math rendering — The webview chat panel renders mermaid code fences as interactive diagr",
+      "status": "active"
+    },
+    {
+      "id": "ADR-006",
+      "title": "override render(width: number): string[] {",
+      "date": "2026-09-03 08:43:50",
+      "file": "2026-09-03-ADR-006-override-renderwidth-number-string.md",
+      "constraint": "override render(width: number): string[] {: Řekněte „implement minimal preset“ — odhad: ~150 řádků, 4 soubory + test.",
+      "status": "active"
+    },
+    {
+      "id": "ADR-007",
+      "title": "Minimal Preset — Narrow Braille Gauge Strip for pi-sidebar",
+      "date": "2026-09-03 08:53:53",
+      "file": "2026-09-03-ADR-007-minimal-preset-narrow-braille-gauge-strip-for-pi-s.md",
+      "constraint": "Minimal Preset — Narrow Braille Gauge Strip for pi-sidebar: Added new `minimal` preset rendered as a narrow strip (8–12 columns, default 10 on switch): braille ring gauge (new `src/gauge.ts`, U+2800 dot grid, plain Euclidean distance since braille dots are screen-square) filling clockwise from 12 o'clock with colored percent line and cost; thinking-level emoji; worst-of-windows quota mini-bar (contextBar, 70/90% color thresholds); git dirty/clean dot with ahead/behind arrows; MCP/LSP readiness dots. Minimal mode suppresses the bottom Git dock, ZKRATKY hints, and branding sections. Width bounds lowered 16→8 (config.ts, index.ts, commands.ts); preset switch to minimal auto-shrinks width to 10, switching back restores 28. Complements footer: footer keeps full text telemetry, sidebar shows gauges only.",
       "status": "active"
     }
   ]

@@ -129,7 +129,7 @@ export default function (pi: ExtensionAPI): void {
 
 	function resizeSidebar(delta: number, ctx: ExtensionContext): void {
 		const current = getActiveConfig();
-		const newWidth = Math.max(16, Math.min(60, current.width + delta));
+		const newWidth = Math.max(8, Math.min(60, current.width + delta));
 		const next: SidebarConfig = { ...current, width: newWidth, enabled: true };
 		setActiveConfig(next);
 		pi.appendEntry(CONFIG_ENTRY_TYPE, next);
