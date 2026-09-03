@@ -3,7 +3,12 @@ import type {
 	ExtensionContext,
 	Theme,
 } from "@earendil-works/pi-coding-agent";
-import type { Component, OverlayHandle, TUI } from "@earendil-works/pi-tui";
+import {
+	type Component,
+	type OverlayHandle,
+	type TUI,
+	matchesKey,
+} from "@earendil-works/pi-tui";
 import { registerSidebarCommands } from "./src/commands.js";
 import {
 	CONFIG_ENTRY_TYPE,
@@ -110,10 +115,10 @@ export default function (pi: ExtensionAPI): void {
 		// Wrap the input editor so it stops before the sidebar
 		ctx.ui.setEditorComponent((t, th, kb) => new SidebarAwareEditor(t, th, kb));
 
-		// Hook mouse wheel listener over sidebar region
+		// Hook direct keyboard & mouse wheel listener over sidebar region
 		if (!removeInputListener) {
 			try {
-				tui.terminal?.write?.("\x1b[?1000h\x1b[?1006h");
+				process.stdout.write("\x1b[?1000h\x1b[?1002h\x1b[?1006h");
 			} catch {
 				// Non-fatal
 			}
@@ -122,42 +127,119 @@ export default function (pi: ExtensionAPI): void {
 				const active = getActiveConfig();
 				if (!active.enabled) return undefined;
 
-				// SGR Mouse Protocol: \x1b[<button;col;row;M or m
-				const sgrMatch = data.match(/^\x1b\[<(\d+);(\d+);(\d+)([Mm])/);
-				if (sgrMatch) {
-					const button = Number.parseInt(sgrMatch[1], 10);
-					const col = Number.parseInt(sgrMatch[2], 10);
-					const termWidth = tui.terminal?.columns || process.stdout?.columns || 80;
-					const sidebarStartCol = termWidth - active.width + 1;
+				// 1. Direct Keyboard Shortcut Interception (prevents transcript hijacking)
+				if (
+					matchesKey(data, "ctrl+shift+up") ||
+					data === "\x1b[1;6A" ||
+					data.includes("\x1b[1;6A") ||
+					matchesKey(data, "ctrl+shift+u")
+				) {
+					scrollSidebar(-3);
+					return { consume: true };
+				}
 
-					if (col >= sidebarStartCol && col <= termWidth) {
-						// Button 64 = wheel up, 65 = wheel down (with modifiers 68, 72 / 69, 73)
-						if (button === 64 || button === 68 || button === 72) {
-							scrollSidebar(-3);
-							return { consume: true };
-						}
-						if (button === 65 || button === 69 || button === 73) {
-							scrollSidebar(3);
-							return { consume: true };
+				if (
+					matchesKey(data, "ctrl+shift+down") ||
+					data === "\x1b[1;6B" ||
+					data.includes("\x1b[1;6B") ||
+					matchesKey(data, "ctrl+shift+d")
+				) {
+					scrollSidebar(3);
+					return { consume: true };
+				}
+
+				if (
+					matchesKey(data, "ctrl+shift+pageUp") ||
+					data === "\x1b[5;6~" ||
+					data.includes("\x1b[5;6~")
+				) {
+					scrollSidebar(-10);
+					return { consume: true };
+				}
+
+				if (
+					matchesKey(data, "ctrl+shift+pageDown") ||
+					data === "\x1b[6;6~" ||
+					data.includes("\x1b[6;6~")
+				) {
+					scrollSidebar(10);
+					return { consume: true };
+				}
+
+				if (
+					matchesKey(data, "ctrl+shift+right") ||
+					data === "\x1b[1;6C" ||
+					data.includes("\x1b[1;6C")
+				) {
+					if (currentContext) resizeSidebar(4, currentContext);
+					return { consume: true };
+				}
+
+				if (
+					matchesKey(data, "ctrl+shift+left") ||
+					data === "\x1b[1;6D" ||
+					data.includes("\x1b[1;6D")
+				) {
+					if (currentContext) resizeSidebar(-4, currentContext);
+					return { consume: true };
+				}
+
+				// 2. SGR Mouse Protocol: \x1b[<button;col;row;M or m
+				const sgrMatches = Array.from(
+					data.matchAll(/\x1b\[<(\d+);(\d+);(\d+)([Mm])/g),
+				);
+				if (sgrMatches.length > 0) {
+					const termWidth =
+						tui.terminal?.columns || process.stdout?.columns || 80;
+					const sidebarStartCol = Math.max(1, termWidth - active.width + 1);
+
+					for (const match of sgrMatches) {
+						const button = Number.parseInt(match[1], 10);
+						const col = Number.parseInt(match[2], 10);
+
+						if (col >= sidebarStartCol && col <= termWidth) {
+							// Button 64 = wheel up, 65 = wheel down (with optional modifier bits: 68, 72 / 69, 73)
+							if (
+								button === 64 ||
+								button === 68 ||
+								button === 72 ||
+								(button >= 64 && (button & 64) !== 0 && (button & 1) === 0)
+							) {
+								scrollSidebar(-3);
+								return { consume: true };
+							}
+							if (
+								button === 65 ||
+								button === 69 ||
+								button === 73 ||
+								(button >= 64 && (button & 64) !== 0 && (button & 1) === 1)
+							) {
+								scrollSidebar(3);
+								return { consume: true };
+							}
 						}
 					}
 				}
 
-				// Normal X10 / UTF-8 Mouse Protocol: \x1b[M <cb+32> <cx+32> <cy+32>
-				if (data.startsWith("\x1b[M") && data.length >= 6) {
-					const cb = data.charCodeAt(3) - 32;
-					const cx = data.charCodeAt(4) - 32;
-					const termWidth = tui.terminal?.columns || process.stdout?.columns || 80;
-					const sidebarStartCol = termWidth - active.width + 1;
+				// 3. Normal X10 / UTF-8 Mouse Protocol: \x1b[M <cb+32> <cx+32> <cy+32>
+				if (data.includes("\x1b[M")) {
+					const idx = data.indexOf("\x1b[M");
+					if (data.length >= idx + 6) {
+						const cb = data.charCodeAt(idx + 3) - 32;
+						const cx = data.charCodeAt(idx + 4) - 32;
+						const termWidth =
+							tui.terminal?.columns || process.stdout?.columns || 80;
+						const sidebarStartCol = Math.max(1, termWidth - active.width + 1);
 
-					if (cx >= sidebarStartCol && cx <= termWidth) {
-						if (cb === 64 || cb === 96) {
-							scrollSidebar(-3);
-							return { consume: true };
-						}
-						if (cb === 65 || cb === 97) {
-							scrollSidebar(3);
-							return { consume: true };
+						if (cx >= sidebarStartCol && cx <= termWidth) {
+							if (cb === 64 || cb === 96) {
+								scrollSidebar(-3);
+								return { consume: true };
+							}
+							if (cb === 65 || cb === 97) {
+								scrollSidebar(3);
+								return { consume: true };
+							}
 						}
 					}
 				}
@@ -304,6 +386,20 @@ export default function (pi: ExtensionAPI): void {
 		description: "Zmenšit šířku postranního panelu (-4 sloupce)",
 		handler: (ctx) => {
 			resizeSidebar(-4, ctx);
+		},
+	});
+
+	pi.registerShortcut("ctrl+shift+up", {
+		description: "Posunout postranní panel nahoru (-3 řádky)",
+		handler: () => {
+			scrollSidebar(-3);
+		},
+	});
+
+	pi.registerShortcut("ctrl+shift+down", {
+		description: "Posunout postranní panel dolů (+3 řádky)",
+		handler: () => {
+			scrollSidebar(3);
 		},
 	});
 
