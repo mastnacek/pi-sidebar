@@ -67,6 +67,17 @@ const LSP_ABBR: Record<string, string> = {
 	lotusscript: "LS",
 };
 
+/** Text tags for thinking levels (minimal preset, monospace style). */
+const THINKING_SHORT: Record<string, string> = {
+	off: "off",
+	minimal: "min",
+	low: "low",
+	medium: "med",
+	high: "high",
+	xhigh: "xhi",
+	max: "max",
+};
+
 function abbrevLsp(serverId: string): string {
 	const key = serverId.toLowerCase().trim();
 	if (LSP_ABBR[key]) return LSP_ABBR[key];
@@ -257,38 +268,42 @@ export class SidebarComponent implements Component {
 		// PRESET: MINIMAL (Narrow gauge strip — ~10 columns, indicators only)
 		// =========================================================================
 		if (config.preset === "minimal") {
+			// Real usable width (innerWidth has a floor of 8 — never pad beyond
+			// what actually fits, or sliceByColumn will cut the line).
+			const usable = Math.max(0, width - borderColWidth);
 			const center = (s: string) => {
-				const padLen = Math.max(0, innerWidth - visibleWidth(s));
+				const padLen = Math.max(0, usable - visibleWidth(s));
 				return `${" ".repeat(Math.floor(padLen / 2))}${s}`;
 			};
-			// Short text labels fit when the strip is at least ~10 columns wide
-			// (usable width >= 8): e.g. "🌿 GIT ●". Below that, emoji-only fallback.
-			// NB: innerWidth has a floor of 8, so compute usable width directly.
-			const showLabels = width - borderColWidth >= 8;
+			// Text labels in plain monospace style (btop/airline aesthetic). All
+			// short forms fit usable width 6+; the LSP server abbreviation needs 8.
+			const showServerAbbr = usable >= 8;
 			const dot = (ready: boolean) => (ready ? "●" : "○");
-			const indicator = (icon: string, label: string, ready: boolean) =>
-				showLabels ? `${icon} ${label} ${dot(ready)}` : `${icon} ${dot(ready)}`;
+			const indicator = (label: string, ready: boolean) =>
+				`${label} ${dot(ready)}`;
 
 			// 1. Context ring gauge + percent
 			if (config.showContext) {
-				const ringW = Math.max(3, Math.min(5, innerWidth));
+				const ringW = Math.max(3, Math.min(5, usable));
 				for (const row of ringGauge(percentValue ?? 0, ringW, 3)) {
 					topLines.push(ctxColor(center(row)));
 				}
 				const pctStr =
 					percentValue === null ? "?%" : `${Math.round(percentValue)}%`;
-				topLines.push(ctxColor(center(showLabels ? `📊 ${pctStr}` : pctStr)));
+				topLines.push(ctxColor(center(pctStr)));
 				if (stats.totalCost > 0) {
-					const costStr = `$${stats.totalCost.toFixed(2)}`;
-					topLines.push(dim(center(showLabels ? `💰 ${costStr}` : costStr)));
+					topLines.push(dim(center(`$${stats.totalCost.toFixed(2)}`)));
 				}
 				topLines.push("");
 			}
 
-			// 2. Thinking level emoji (model indicator)
+			// 2. Thinking level (text tag, colored per level token)
 			if (config.showModel && model) {
 				const level = this.pi.getThinkingLevel() || "off";
-				topLines.push(center(THINKING_EMOJI[level] ?? "🧠"));
+				const short = THINKING_SHORT[level] ?? level;
+				topLines.push(
+					th.fg(THINKING_TOKEN[level] ?? "thinkingOff", center(`T:${short}`)),
+				);
 				topLines.push("");
 			}
 
@@ -317,7 +332,7 @@ export class SidebarComponent implements Component {
 
 				if (qPct !== null) {
 					const c = qColor(qPct);
-					topLines.push(c(center(`📶 ${Math.round(qPct)}%`)));
+					topLines.push(c(center(`Q ${Math.round(qPct)}%`)));
 					topLines.push("");
 				}
 			}
@@ -326,7 +341,7 @@ export class SidebarComponent implements Component {
 			if (config.showGit) {
 				const gitInfo = getGitInfo(this.ctx.cwd);
 				if (gitInfo.branch) {
-					const gitLine = indicator("🌿", "GIT", !gitInfo.dirty);
+					const gitLine = indicator("GIT", !gitInfo.dirty);
 					topLines.push(center(gitInfo.dirty ? warning(gitLine) : success(gitLine)));
 					if (gitInfo.ahead > 0) topLines.push(accent(center(`↑${gitInfo.ahead}`)));
 					if (gitInfo.behind > 0) topLines.push(dim(center(`↓${gitInfo.behind}`)));
@@ -377,7 +392,7 @@ export class SidebarComponent implements Component {
 								t.startsWith("lotusscript_lsp"),
 						);
 					}
-					const mcpLine = indicator("🔌", "MCP", hasMcp);
+					const mcpLine = indicator("MCP", hasMcp);
 					let mcpColor = dim;
 					if (failed) mcpColor = error;
 					else if (hasMcp) mcpColor = success;
@@ -389,22 +404,26 @@ export class SidebarComponent implements Component {
 						// Real state published by an LSP extension (pi-lens pattern).
 						const lspVal = stripAnsi(cleanStatusText(lspEntry[1]));
 						if (/inactive/i.test(lspVal)) {
-							topLines.push(center(dim("💡 ○")));
+							topLines.push(center(dim("LSP ○")));
 						} else {
 							const m = lspVal.match(/Active:\s*([^·,]+)/i);
 							const abbr = m ? abbrevLsp(m[1].trim()) : "";
 							if (this.busy) {
-								topLines.push(
-									accent(center(`💡 ${spinnerFrame}${abbr ? ` ${abbr}` : ""}`)),
-								);
+								const busyLine = showServerAbbr
+									? `LSP ${spinnerFrame} ${abbr}`.trimEnd()
+									: `LSP ${spinnerFrame}`;
+								topLines.push(accent(center(busyLine)));
 							} else {
-								topLines.push(success(center(`💡 ${abbr ? `${abbr} ` : ""}●`)));
+								const idleLine = showServerAbbr
+									? `LSP ${abbr} ●`.trimEnd()
+									: "LSP ●";
+								topLines.push(success(center(idleLine)));
 							}
 						}
 					} else {
 						// Heuristic fallback (file-based detection)
 						const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
-						const lspLine = indicator("💡", "LSP", servers.length > 0);
+						const lspLine = indicator("LSP", servers.length > 0);
 						topLines.push(
 							center(servers.length > 0 ? success(lspLine) : dim(lspLine)),
 						);

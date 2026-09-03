@@ -183,7 +183,7 @@ test("SidebarComponent minimal preset renders gauge strip", () => {
 	// Percent shown
 	assert.ok(all.includes("42%"));
 	// Thinking emoji for 'high'
-	assert.ok(all.includes("🧠"));
+	assert.ok(all.includes("T:high"));
 	// No shortcut hints or branding in minimal mode
 	assert.ok(!all.includes("ZKRATKY"));
 	assert.ok(!all.includes("OpenCode 1.18.26"));
@@ -216,7 +216,7 @@ test("SidebarComponent minimal LSP uses real status and spinner when busy", () =
 
 	// Idle: real status wins over heuristic — shows abbreviated server + dot
 	const idle = sidebar.render(10).join("\n");
-	assert.ok(idle.includes("💡"), "LSP icon missing");
+	assert.ok(idle.includes("LSP"), "LSP label missing");
 	assert.ok(idle.includes("TS"), "server abbreviation missing");
 	assert.ok(idle.includes("●"), "ready dot missing");
 
