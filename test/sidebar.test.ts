@@ -223,10 +223,7 @@ test("SidebarComponent minimal LSP uses real status and spinner when busy", () =
 	// Busy: spinner frame replaces the dot
 	sidebar.updateBusy(true);
 	const busy = sidebar.render(10).join("\n");
-	assert.ok(
-		/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(busy),
-		"expected spinner frame while busy",
-	);
+	assert.ok(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(busy), "expected spinner frame while busy");
 	sidebar.updateBusy(false);
 	setActiveConfig(DEFAULT_CONFIG);
 });

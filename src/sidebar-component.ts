@@ -54,18 +54,7 @@ function cleanStatusText(text: string): string {
 }
 
 /** Braille spinner frames — advanced on time so it animates across renders. */
-const SPINNER_FRAMES = [
-	"⠋",
-	"⠙",
-	"⠹",
-	"⠸",
-	"⠼",
-	"⠴",
-	"⠦",
-	"⠧",
-	"⠇",
-	"⠏",
-];
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 /** Short labels for known language servers (fits the ~8-col gauge strip). */
 const LSP_ABBR: Record<string, string> = {
@@ -361,8 +350,7 @@ export class SidebarComponent implements Component {
 					(globalThis as { __pi_footer_data?: FooterDataProviderLike })
 						.__pi_footer_data ??
 					null;
-				const extMap =
-					activeFooterData?.getExtensionStatuses?.() ?? null;
+				const extMap = activeFooterData?.getExtensionStatuses?.() ?? null;
 				const extEntries: Array<[string, string]> = extMap
 					? [...extMap.entries()].filter(([, v]) => Boolean(v))
 					: [];
@@ -396,9 +384,7 @@ export class SidebarComponent implements Component {
 					topLines.push(center(mcpColor(mcpLine)));
 				}
 				if (config.showLsp) {
-					const lspEntry = extEntries.find(([k]) =>
-						k.toLowerCase().includes("lsp"),
-					);
+					const lspEntry = extEntries.find(([k]) => k.toLowerCase().includes("lsp"));
 					if (lspEntry) {
 						// Real state published by an LSP extension (pi-lens pattern).
 						const lspVal = stripAnsi(cleanStatusText(lspEntry[1]));
@@ -412,9 +398,7 @@ export class SidebarComponent implements Component {
 									accent(center(`💡 ${spinnerFrame}${abbr ? ` ${abbr}` : ""}`)),
 								);
 							} else {
-								topLines.push(
-									success(center(`💡 ${abbr ? `${abbr} ` : ""}●`)),
-								);
+								topLines.push(success(center(`💡 ${abbr ? `${abbr} ` : ""}●`)));
 							}
 						}
 					} else {
