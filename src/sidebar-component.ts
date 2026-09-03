@@ -700,7 +700,7 @@ export class SidebarComponent implements Component {
 		// =========================================================================
 		if (config.preset !== "minimal") {
 			bottomLines.push(header("ZKRATKY", "⌨️"));
-			bottomLines.push(dim("⌨️ ctrl+shift+b    « sbalit/rozbalit"));
+			bottomLines.push(dim("⌨️ ctrl+shift+b    « minimal pruh / zpět"));
 			bottomLines.push(dim("⌨️ ctrl+shift+←/→  šířka (±4)"));
 			bottomLines.push("");
 

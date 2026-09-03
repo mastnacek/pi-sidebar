@@ -31,6 +31,7 @@ export default function (pi: ExtensionAPI): void {
 	let currentTheme: Theme | null = null;
 	let capturedFooterData: FooterDataProviderLike | null = null;
 	let unsubBranch: (() => void) | null = null;
+	let lastNonMinimalPreset: SidebarConfig["preset"] | null = null;
 
 	const refreshUI = () => {
 		if (currentTui && currentContext && currentTheme) {
@@ -115,14 +116,29 @@ export default function (pi: ExtensionAPI): void {
 
 	function toggleSidebar(ctx: ExtensionContext): void {
 		const current = getActiveConfig();
-		const next: SidebarConfig = { ...current, enabled: !current.enabled };
+		const goingMinimal = current.preset !== "minimal";
+		const next: SidebarConfig = {
+			...current,
+			enabled: true,
+			preset: goingMinimal ? "minimal" : (lastNonMinimalPreset ?? "detailed"),
+		};
+		if (goingMinimal) {
+			lastNonMinimalPreset = current.preset;
+		}
+		// Mirror /sidebar preset width heuristics: gauge strip needs ~10 cols,
+		// other presets need room to breathe.
+		if (next.preset === "minimal" && next.width > 12) {
+			next.width = 10;
+		} else if (next.preset !== "minimal" && next.width < 16) {
+			next.width = 28;
+		}
 		setActiveConfig(next);
 		pi.appendEntry(CONFIG_ENTRY_TYPE, next);
 		if (currentTui && currentTheme) {
 			applySidebar(currentTui, ctx, currentTheme, next);
 		}
 		ctx.ui.notify(
-			`Postranní panel ${next.enabled ? `rozbalen (${next.width} sloupců)` : "sbalen («)"}`,
+			`Postranní panel: styl "${next.preset}" (šířka ${next.width} sloupců)`,
 			"info",
 		);
 	}
@@ -219,7 +235,7 @@ export default function (pi: ExtensionAPI): void {
 
 	// 4. Keyboard shortcuts for collapsing and resizing
 	pi.registerShortcut("ctrl+shift+b", {
-		description: "Přepnout sbalení / rozbalení postranního panelu («)",
+		description: "Přepnout minimal pruh / předchozí styl postranního panelu",
 		handler: (ctx) => {
 			toggleSidebar(ctx);
 		},

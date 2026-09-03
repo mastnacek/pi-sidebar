@@ -8,8 +8,9 @@ Provides an elegant, non-intrusive vertical sidebar docked to the right edge of 
 
 ## Features
 
-- **Resizable & Collapsible (Herdr-Style)**:
-  - Quick toggle collapse/expand via `ctrl+shift+b` or `/sidebar toggle`.
+- **Minimal Preset Hotkey (Herdr-Style)**:
+  - `ctrl+shift+b` toggles the `minimal` gauge strip on/off — pressing again restores the previous preset (default `detailed`). Width auto-adjusts (10 cols for minimal, 28 for full presets).
+  - Full collapse/expand still available via `/sidebar toggle`.
   - Permanent shortcut hints displayed on the bottom of the sidebar.
   - Layout-agnostic resizing (works on Czech & international keyboards) via `ctrl+shift+→` (wider) and `ctrl+shift+←` (narrower) or `/sidebar wider` / `/sidebar narrower`.
 - **OpenCode Visual Fidelity & Rich Presets**:

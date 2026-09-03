@@ -262,7 +262,7 @@ export function registerSidebarCommands(
 					"Ukotvený pravý postranní panel s dynamickou změnou šířky a telemetrií.",
 					"",
 					"### Klávesové zkratky a ovládání:",
-					"  ctrl+shift+b               — Přepnout sbalení / rozbalení («)",
+					"  ctrl+shift+b               — Přepnout minimal pruh / předchozí styl",
 					"  ctrl+shift+→/←             — Zvětšit / zmenšit šířku panelu (±4 sloupce)",
 					"",
 					"### Trvalá nápověda zkratek:",

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-09-03T06:53:53.962Z",
+  "lastUpdated": "2026-09-03T06:56:51.984Z",
   "records": [
     {
       "id": "ADR-001",
@@ -56,6 +56,14 @@
       "date": "2026-09-03 08:53:53",
       "file": "2026-09-03-ADR-007-minimal-preset-narrow-braille-gauge-strip-for-pi-s.md",
       "constraint": "Minimal Preset — Narrow Braille Gauge Strip for pi-sidebar: Added new `minimal` preset rendered as a narrow strip (8–12 columns, default 10 on switch): braille ring gauge (new `src/gauge.ts`, U+2800 dot grid, plain Euclidean distance since braille dots are screen-square) filling clockwise from 12 o'clock with colored percent line and cost; thinking-level emoji; worst-of-windows quota mini-bar (contextBar, 70/90% color thresholds); git dirty/clean dot with ahead/behind arrows; MCP/LSP readiness dots. Minimal mode suppresses the bottom Git dock, ZKRATKY hints, and branding sections. Width bounds lowered 16→8 (config.ts, index.ts, commands.ts); preset switch to minimal auto-shrinks width to 10, switching back restores 28. Complements footer: footer keeps full text telemetry, sidebar shows gauges only.",
+      "status": "active"
+    },
+    {
+      "id": "ADR-008",
+      "title": "399f78e refactor: remove vertical scrolling feature and dead scroll ha",
+      "date": "2026-09-03 08:56:51",
+      "file": "2026-09-03-ADR-008-399f78e-refactor-remove-vertical-scrolling-feature.md",
+      "constraint": "399f78e refactor: remove vertical scrolling feature and dead scroll ha: docs/adr/2026-09-03-ADR-005-architectural-workaround-constraint.md ??",
       "status": "active"
     }
   ]
