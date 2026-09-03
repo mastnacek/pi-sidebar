@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-09-03T06:56:51.984Z",
+  "lastUpdated": "2026-09-03T08:26:33.434Z",
   "records": [
     {
       "id": "ADR-001",
@@ -64,6 +64,14 @@
       "date": "2026-09-03 08:56:51",
       "file": "2026-09-03-ADR-008-399f78e-refactor-remove-vertical-scrolling-feature.md",
       "constraint": "399f78e refactor: remove vertical scrolling feature and dead scroll ha: docs/adr/2026-09-03-ADR-005-architectural-workaround-constraint.md ??",
+      "status": "active"
+    },
+    {
+      "id": "ADR-009",
+      "title": "[master 2b1ad47] refactor(minimal): replace emoji indicators with plai",
+      "date": "2026-09-03 10:26:33",
+      "file": "2026-09-03-ADR-009-master-2b1ad47-refactorminimal-replace-emoji-indic.md",
+      "constraint": "[master 2b1ad47] refactor(minimal): replace emoji indicators with plai: Successfully replaced 1 block(s) in D:/01_programovani/pi/plugins/pi-sidebar/README.md.",
       "status": "active"
     }
   ]

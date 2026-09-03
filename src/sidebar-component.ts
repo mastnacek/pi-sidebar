@@ -414,9 +414,7 @@ export class SidebarComponent implements Component {
 									: `LSP ${spinnerFrame}`;
 								topLines.push(accent(center(busyLine)));
 							} else {
-								const idleLine = showServerAbbr
-									? `LSP ${abbr} ●`.trimEnd()
-									: "LSP ●";
+								const idleLine = showServerAbbr ? `LSP ${abbr} ●`.trimEnd() : "LSP ●";
 								topLines.push(success(center(idleLine)));
 							}
 						}
