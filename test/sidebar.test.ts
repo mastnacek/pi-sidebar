@@ -189,3 +189,44 @@ test("SidebarComponent minimal preset renders gauge strip", () => {
 	assert.ok(!all.includes("OpenCode 1.18.26"));
 	setActiveConfig(DEFAULT_CONFIG);
 });
+
+test("SidebarComponent minimal LSP uses real status and spinner when busy", () => {
+	const mockTui: any = { terminal: { rows: 24, columns: 80 } };
+	const mockPi: any = {
+		getActiveTools: () => [],
+		getThinkingLevel: () => "off",
+	};
+	const mockCtx: any = {
+		cwd: process.cwd(),
+		model: { id: "test-model" },
+		sessionManager: { getSessionName: () => "test", getEntries: () => [] },
+		getContextUsage: () => null,
+	};
+	const mockTheme: any = {
+		fg: (_: string, s: string) => s,
+		bg: (_: string, s: string) => s,
+	};
+
+	setActiveConfig({ ...DEFAULT_CONFIG, preset: "minimal", width: 10 });
+	const sidebar = new SidebarComponent(mockTui, mockPi, mockCtx, mockTheme);
+	sidebar.updateFooterData({
+		getExtensionStatuses: () =>
+			new Map([["pi-lens-lsp", "LSP Active: typescript"]]),
+	} as any);
+
+	// Idle: real status wins over heuristic — shows abbreviated server + dot
+	const idle = sidebar.render(10).join("\n");
+	assert.ok(idle.includes("💡"), "LSP icon missing");
+	assert.ok(idle.includes("TS"), "server abbreviation missing");
+	assert.ok(idle.includes("●"), "ready dot missing");
+
+	// Busy: spinner frame replaces the dot
+	sidebar.updateBusy(true);
+	const busy = sidebar.render(10).join("\n");
+	assert.ok(
+		/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/.test(busy),
+		"expected spinner frame while busy",
+	);
+	sidebar.updateBusy(false);
+	setActiveConfig(DEFAULT_CONFIG);
+});

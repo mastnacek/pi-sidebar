@@ -32,6 +32,23 @@ export default function (pi: ExtensionAPI): void {
 	let capturedFooterData: FooterDataProviderLike | null = null;
 	let unsubBranch: (() => void) | null = null;
 	let lastNonMinimalPreset: SidebarConfig["preset"] | null = null;
+	let busy = false;
+	let busyInterval: ReturnType<typeof setInterval> | null = null;
+
+	/** Track agent-busy state for the LSP spinner; polls render while active. */
+	function setBusy(next: boolean): void {
+		if (busy === next) return;
+		busy = next;
+		sidebarComponent?.updateBusy(busy);
+		if (busy && !busyInterval) {
+			// Spinner animation + MCP/LSP freshness during long-running turns
+			busyInterval = setInterval(() => refreshUI(), 300);
+		} else if (!busy && busyInterval) {
+			clearInterval(busyInterval);
+			busyInterval = null;
+		}
+		refreshUI();
+	}
 
 	const refreshUI = () => {
 		if (currentTui && currentContext && currentTheme) {
@@ -212,6 +229,8 @@ export default function (pi: ExtensionAPI): void {
 	pi.on("message_end", refreshUI);
 	pi.on("tool_execution_start", refreshUI);
 	pi.on("tool_execution_end", refreshUI);
+	pi.on("agent_start", () => setBusy(true));
+	pi.on("agent_settled", () => setBusy(false));
 	pi.on("model_select", (_event, ctx) => {
 		currentContext = ctx;
 		pollActiveQuotas(true);
@@ -223,6 +242,11 @@ export default function (pi: ExtensionAPI): void {
 
 	// 3. Cleanup on shutdown
 	pi.on("session_shutdown", () => {
+		if (busyInterval) {
+			clearInterval(busyInterval);
+			busyInterval = null;
+		}
+		busy = false;
 		if (overlayHandle) {
 			overlayHandle.hide();
 			overlayHandle = null;

@@ -53,6 +53,37 @@ function cleanStatusText(text: string): string {
 		.trim();
 }
 
+/** Braille spinner frames — advanced on time so it animates across renders. */
+const SPINNER_FRAMES = [
+	"⠋",
+	"⠙",
+	"⠹",
+	"⠸",
+	"⠼",
+	"⠴",
+	"⠦",
+	"⠧",
+	"⠇",
+	"⠏",
+];
+
+/** Short labels for known language servers (fits the ~8-col gauge strip). */
+const LSP_ABBR: Record<string, string> = {
+	typescript: "TS",
+	"rust-analyzer": "RA",
+	gopls: "GO",
+	pyright: "PY",
+	jdtls: "JD",
+	clangd: "CL",
+	lotusscript: "LS",
+};
+
+function abbrevLsp(serverId: string): string {
+	const key = serverId.toLowerCase().trim();
+	if (LSP_ABBR[key]) return LSP_ABBR[key];
+	return key.slice(0, 2).toUpperCase();
+}
+
 function getWorkspaceLspServers(cwd: string, activeTools: string[]): string[] {
 	const servers: string[] = [];
 
@@ -110,6 +141,8 @@ export class SidebarComponent implements Component {
 	private theme: Theme;
 	private sessionStartIso: string;
 	private footerData: FooterDataProviderLike | null = null;
+	/** True while the agent turn is processing — drives the LSP spinner. */
+	private busy = false;
 
 	constructor(tui: TUI, pi: ExtensionAPI, ctx: ExtensionContext, theme: Theme) {
 		this.tui = tui;
@@ -129,6 +162,10 @@ export class SidebarComponent implements Component {
 
 	updateFooterData(footerData: FooterDataProviderLike | null): void {
 		this.footerData = footerData;
+	}
+
+	updateBusy(busy: boolean): void {
+		this.busy = busy;
 	}
 
 	invalidate(): void {
@@ -308,7 +345,9 @@ export class SidebarComponent implements Component {
 				}
 			}
 
-			// 5. MCP / LSP readiness dots
+			// 5. MCP / LSP readiness — real status from the extension status map
+			// (pi-lens publishes "pi-lens-lsp" via ctx.ui.setStatus, like the core
+			// statusline does); heuristic fallback when no extension reported state.
 			if (config.showMcp || config.showLsp) {
 				let activeTools: string[] = [];
 				try {
@@ -317,23 +356,75 @@ export class SidebarComponent implements Component {
 					// Non-fatal
 				}
 
+				const activeFooterData =
+					this.footerData ??
+					(globalThis as { __pi_footer_data?: FooterDataProviderLike })
+						.__pi_footer_data ??
+					null;
+				const extMap =
+					activeFooterData?.getExtensionStatuses?.() ?? null;
+				const extEntries: Array<[string, string]> = extMap
+					? [...extMap.entries()].filter(([, v]) => Boolean(v))
+					: [];
+				const spinnerFrame =
+					SPINNER_FRAMES[Math.floor(Date.now() / 120) % SPINNER_FRAMES.length];
+
 				if (config.showMcp) {
-					const hasMcp = activeTools.some(
-						(t) =>
-							t.startsWith("mcp_") ||
-							t.startsWith("mcp__") ||
-							t.startsWith("knowledge_base") ||
-							t.startsWith("lotusscript_lsp"),
+					const mcpEntries = extEntries.filter(([k]) =>
+						k.toLowerCase().includes("mcp"),
 					);
+					let hasMcp: boolean;
+					let failed = false;
+					if (mcpEntries.length > 0) {
+						hasMcp = true;
+						failed = mcpEntries.some(([, v]) =>
+							/error|failed|offline/i.test(stripAnsi(v)),
+						);
+					} else {
+						hasMcp = activeTools.some(
+							(t) =>
+								t.startsWith("mcp_") ||
+								t.startsWith("mcp__") ||
+								t.startsWith("knowledge_base") ||
+								t.startsWith("lotusscript_lsp"),
+						);
+					}
 					const mcpLine = indicator("🔌", "MCP", hasMcp);
-					topLines.push(center(hasMcp ? success(mcpLine) : dim(mcpLine)));
+					let mcpColor = dim;
+					if (failed) mcpColor = error;
+					else if (hasMcp) mcpColor = success;
+					topLines.push(center(mcpColor(mcpLine)));
 				}
 				if (config.showLsp) {
-					const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
-					const lspLine = indicator("💡", "LSP", servers.length > 0);
-					topLines.push(
-						center(servers.length > 0 ? success(lspLine) : dim(lspLine)),
+					const lspEntry = extEntries.find(([k]) =>
+						k.toLowerCase().includes("lsp"),
 					);
+					if (lspEntry) {
+						// Real state published by an LSP extension (pi-lens pattern).
+						const lspVal = stripAnsi(cleanStatusText(lspEntry[1]));
+						if (/inactive/i.test(lspVal)) {
+							topLines.push(center(dim("💡 ○")));
+						} else {
+							const m = lspVal.match(/Active:\s*([^·,]+)/i);
+							const abbr = m ? abbrevLsp(m[1].trim()) : "";
+							if (this.busy) {
+								topLines.push(
+									accent(center(`💡 ${spinnerFrame}${abbr ? ` ${abbr}` : ""}`)),
+								);
+							} else {
+								topLines.push(
+									success(center(`💡 ${abbr ? `${abbr} ` : ""}●`)),
+								);
+							}
+						}
+					} else {
+						// Heuristic fallback (file-based detection)
+						const servers = getWorkspaceLspServers(this.ctx.cwd, activeTools);
+						const lspLine = indicator("💡", "LSP", servers.length > 0);
+						topLines.push(
+							center(servers.length > 0 ? success(lspLine) : dim(lspLine)),
+						);
+					}
 				}
 			}
 		}
