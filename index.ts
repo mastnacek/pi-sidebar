@@ -35,6 +35,19 @@ export default function (pi: ExtensionAPI): void {
 	let busy = false;
 	let busyInterval: ReturnType<typeof setInterval> | null = null;
 
+	/** UI-safe notify: never crash a headless session (AGENTS.md §6). */
+	function notify(
+		ctx: ExtensionContext,
+		message: string,
+		type: "info" | "warning" | "error" = "info",
+	): void {
+		if (ctx.hasUI) {
+			ctx.ui.notify(message, type);
+		} else {
+			console.log(message);
+		}
+	}
+
 	/** Track agent-busy state for the LSP spinner; polls render while active. */
 	function setBusy(next: boolean): void {
 		if (busy === next) return;
@@ -94,7 +107,7 @@ export default function (pi: ExtensionAPI): void {
 		}
 
 		if (!config.enabled) {
-			ctx.ui.setEditorComponent(undefined);
+			if (ctx.hasUI) ctx.ui.setEditorComponent(undefined);
 			tui.requestRender();
 			return;
 		}
@@ -125,7 +138,9 @@ export default function (pi: ExtensionAPI): void {
 		});
 
 		// Wrap the input editor so it stops before the sidebar
-		ctx.ui.setEditorComponent((t, th, kb) => new SidebarAwareEditor(t, th, kb));
+		if (ctx.hasUI) {
+			ctx.ui.setEditorComponent((t, th, kb) => new SidebarAwareEditor(t, th, kb));
+		}
 
 		pollActiveQuotas();
 		tui.requestRender();
@@ -154,7 +169,8 @@ export default function (pi: ExtensionAPI): void {
 		if (currentTui && currentTheme) {
 			applySidebar(currentTui, ctx, currentTheme, next);
 		}
-		ctx.ui.notify(
+		notify(
+			ctx,
 			`Postranní panel: styl "${next.preset}" (šířka ${next.width} sloupců)`,
 			"info",
 		);
@@ -169,7 +185,7 @@ export default function (pi: ExtensionAPI): void {
 		if (currentTui && currentTheme) {
 			applySidebar(currentTui, ctx, currentTheme, next);
 		}
-		ctx.ui.notify(`Šířka postranního panelu: ${newWidth} sloupců`, "info");
+		notify(ctx, `Šířka postranního panelu: ${newWidth} sloupců`, "info");
 	}
 
 	// 1. Session start lifecycle hook

@@ -42,6 +42,22 @@ const COMMAND_DOCS: Record<string, string> = {
 	help: "zobrazit přehled příkazů a nápovědu",
 };
 
+/**
+ * UI-safe notify: falls back to stdout when running headless (AGENTS.md §6).
+ * Command handling must never crash a non-TUI session just because it reports.
+ */
+function notify(
+	ctx: ExtensionContext,
+	message: string,
+	type: "info" | "warning" | "error" = "info",
+): void {
+	if (ctx.hasUI) {
+		ctx.ui.notify(message, type);
+	} else {
+		console.log(message);
+	}
+}
+
 export function registerSidebarCommands(
 	pi: ExtensionAPI,
 	onConfigChanged: (config: SidebarConfig, ctx: ExtensionContext) => void,
@@ -304,7 +320,7 @@ export function registerSidebarCommands(
 					"Tip: Přidejte `--global` pro trvalé uložení do ~/.pi/agent/pi-sidebar.json pro všechny budoucí relace.",
 				].join("\n");
 
-				ctx.ui.notify(helpText, "info");
+				notify(ctx, helpText, "info");
 				return;
 			}
 
@@ -315,7 +331,7 @@ export function registerSidebarCommands(
 				case "on":
 				case "expand":
 					nextConfig.enabled = true;
-					ctx.ui.notify(
+					notify(ctx, 
 						`Postranní panel rozbalen (${nextConfig.width} sloupců)`,
 						"info",
 					);
@@ -324,12 +340,12 @@ export function registerSidebarCommands(
 				case "off":
 				case "collapse":
 					nextConfig.enabled = false;
-					ctx.ui.notify("Postranní panel sbalen («)", "info");
+					notify(ctx, "Postranní panel sbalen («)", "info");
 					break;
 
 				case "toggle":
 					nextConfig.enabled = !current.enabled;
-					ctx.ui.notify(
+					notify(ctx, 
 						`Postranní panel ${nextConfig.enabled ? `rozbalen (${nextConfig.width} sloupců)` : "sbalen («)"}`,
 						"info",
 					);
@@ -339,13 +355,13 @@ export function registerSidebarCommands(
 					const val = value.toLowerCase();
 					if (val === "on" || val === "true" || val === "show") {
 						nextConfig.showMcp = true;
-						ctx.ui.notify("Sekce MCP v panelu: ZAPNUTO", "info");
+						notify(ctx, "Sekce MCP v panelu: ZAPNUTO", "info");
 					} else if (val === "off" || val === "false" || val === "hide") {
 						nextConfig.showMcp = false;
-						ctx.ui.notify("Sekce MCP v panelu: VYPNUTO", "info");
+						notify(ctx, "Sekce MCP v panelu: VYPNUTO", "info");
 					} else {
 						nextConfig.showMcp = !current.showMcp;
-						ctx.ui.notify(
+						notify(ctx, 
 							`Sekce MCP v panelu: ${nextConfig.showMcp ? "ZAPNUTO" : "VYPNUTO"}`,
 							"info",
 						);
@@ -357,13 +373,13 @@ export function registerSidebarCommands(
 					const val = value.toLowerCase();
 					if (val === "on" || val === "true" || val === "show") {
 						nextConfig.showLsp = true;
-						ctx.ui.notify("Sekce LSP v panelu: ZAPNUTO", "info");
+						notify(ctx, "Sekce LSP v panelu: ZAPNUTO", "info");
 					} else if (val === "off" || val === "false" || val === "hide") {
 						nextConfig.showLsp = false;
-						ctx.ui.notify("Sekce LSP v panelu: VYPNUTO", "info");
+						notify(ctx, "Sekce LSP v panelu: VYPNUTO", "info");
 					} else {
 						nextConfig.showLsp = !current.showLsp;
-						ctx.ui.notify(
+						notify(ctx, 
 							`Sekce LSP v panelu: ${nextConfig.showLsp ? "ZAPNUTO" : "VYPNUTO"}`,
 							"info",
 						);
@@ -376,13 +392,13 @@ export function registerSidebarCommands(
 					const val = value.toLowerCase();
 					if (val === "on" || val === "true" || val === "show") {
 						nextConfig.showExtensions = true;
-						ctx.ui.notify("Zobrazení rozšíření v panelu: ZAPNUTO", "info");
+						notify(ctx, "Zobrazení rozšíření v panelu: ZAPNUTO", "info");
 					} else if (val === "off" || val === "false" || val === "hide") {
 						nextConfig.showExtensions = false;
-						ctx.ui.notify("Zobrazení rozšíření v panelu: VYPNUTO", "info");
+						notify(ctx, "Zobrazení rozšíření v panelu: VYPNUTO", "info");
 					} else {
 						nextConfig.showExtensions = !current.showExtensions;
-						ctx.ui.notify(
+						notify(ctx, 
 							`Zobrazení rozšíření v panelu: ${nextConfig.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
 							"info",
 						);
@@ -397,7 +413,7 @@ export function registerSidebarCommands(
 						`Styl: ${current.preset} | Rozšíření: ${current.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
 						`Patička: ${current.branding} | Rámeček: ${current.borderStyle}`,
 					].join(" | ");
-					ctx.ui.notify(msg, "info");
+					notify(ctx, msg, "info");
 					return;
 				}
 
@@ -406,7 +422,7 @@ export function registerSidebarCommands(
 					const newW = Math.min(60, current.width + Math.abs(delta));
 					nextConfig.width = newW;
 					nextConfig.enabled = true;
-					ctx.ui.notify(
+					notify(ctx, 
 						`Šířka panelu: ${newW} sloupců (+${newW - current.width})`,
 						"info",
 					);
@@ -418,7 +434,7 @@ export function registerSidebarCommands(
 					const newW = Math.max(16, current.width - Math.abs(delta));
 					nextConfig.width = newW;
 					nextConfig.enabled = true;
-					ctx.ui.notify(
+					notify(ctx, 
 						`Šířka panelu: ${newW} sloupců (-${current.width - newW})`,
 						"info",
 					);
@@ -432,13 +448,13 @@ export function registerSidebarCommands(
 							const newW = Math.max(8, Math.min(60, current.width + delta));
 							nextConfig.width = newW;
 							nextConfig.enabled = true;
-							ctx.ui.notify(`Šířka panelu: ${newW} sloupců`, "info");
+							notify(ctx, `Šířka panelu: ${newW} sloupců`, "info");
 							break;
 						}
 					}
 					const num = Number.parseInt(value, 10);
 					if (Number.isNaN(num) || num < 8 || num > 60) {
-						ctx.ui.notify(
+						notify(ctx, 
 							"Šířka musí být v rozmezí 8 až 60 sloupců (např. /sidebar resize +4 nebo /sidebar resize 32).",
 							"warning",
 						);
@@ -446,12 +462,12 @@ export function registerSidebarCommands(
 					}
 					nextConfig.width = num;
 					nextConfig.enabled = true;
-					ctx.ui.notify(`Šířka panelu: ${num} sloupců`, "info");
+					notify(ctx, `Šířka panelu: ${num} sloupců`, "info");
 					break;
 				}
 
 				case "refresh": {
-					ctx.ui.notify("Obnovuji kvóty poskytovatelů...", "info");
+					notify(ctx, "Obnovuji kvóty poskytovatelů...", "info");
 					void refreshKimiQuota(true, () => onConfigChanged(current, ctx));
 					void refreshZaiQuota(true, () => onConfigChanged(current, ctx));
 					return;
@@ -460,7 +476,7 @@ export function registerSidebarCommands(
 				case "width": {
 					const num = Number.parseInt(value, 10);
 					if (Number.isNaN(num) || num < 8 || num > 60) {
-						ctx.ui.notify(
+						notify(ctx, 
 							"Šířka musí být číslo v rozmezí 8 až 60 sloupců (např. /sidebar width 28).",
 							"warning",
 						);
@@ -468,14 +484,14 @@ export function registerSidebarCommands(
 					}
 					nextConfig.width = num;
 					nextConfig.enabled = true;
-					ctx.ui.notify(`Šířka panelu nastavena na ${num} sloupců`, "info");
+					notify(ctx, `Šířka panelu nastavena na ${num} sloupců`, "info");
 					break;
 				}
 
 				case "preset": {
 					const p = value.toLowerCase() as SidebarPreset;
 					if (!["opencode", "compact", "detailed", "minimal"].includes(p)) {
-						ctx.ui.notify(
+						notify(ctx, 
 							"Neplatný styl. Vyberte: opencode, compact, detailed nebo minimal",
 							"warning",
 						);
@@ -488,7 +504,7 @@ export function registerSidebarCommands(
 					} else if (p !== "minimal" && nextConfig.width < 16) {
 						nextConfig.width = 28;
 					}
-					ctx.ui.notify(
+					notify(ctx, 
 						`Styl postranního panelu nastaven na "${p}" (šířka ${nextConfig.width} sloupců)`,
 						"info",
 					);
@@ -499,7 +515,7 @@ export function registerSidebarCommands(
 					const parts = value.split(/\s+/);
 					const brandType = (parts[0] ?? "").toLowerCase() as SidebarBranding;
 					if (!["opencode", "pi", "custom"].includes(brandType)) {
-						ctx.ui.notify(
+						notify(ctx, 
 							"Neplatný typ patičky. Vyberte: opencode, pi nebo custom <text>",
 							"warning",
 						);
@@ -509,34 +525,34 @@ export function registerSidebarCommands(
 					if (brandType === "custom" && parts.length > 1) {
 						nextConfig.customBrandingText = parts.slice(1).join(" ");
 					}
-					ctx.ui.notify(`Patička panelu nastavena na "${brandType}"`, "info");
+					notify(ctx, `Patička panelu nastavena na "${brandType}"`, "info");
 					break;
 				}
 
 				case "border": {
 					const b = value.toLowerCase() as SidebarBorderStyle;
 					if (!["line", "double", "dotted", "space", "none"].includes(b)) {
-						ctx.ui.notify(
+						notify(ctx, 
 							"Neplatný styl oddělovače. Vyberte: line, double, dotted, space, none",
 							"warning",
 						);
 						return;
 					}
 					nextConfig.borderStyle = b;
-					ctx.ui.notify(`Styl oddělovače nastaven na "${b}"`, "info");
+					notify(ctx, `Styl oddělovače nastaven na "${b}"`, "info");
 					break;
 				}
 
 				case "reset":
 					nextConfig = { ...DEFAULT_CONFIG };
-					ctx.ui.notify(
+					notify(ctx, 
 						"Nastavení postranního panelu bylo obnoveno na výchozí hodnoty",
 						"info",
 					);
 					break;
 
 				default:
-					ctx.ui.notify(
+					notify(ctx, 
 						`Neznámý příkaz "${subcommand}". Použijte: /sidebar help`,
 						"warning",
 					);
