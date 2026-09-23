@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileS
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { type ClickRequest, parseClickRequest } from "./click.js";
+import type { SkillStateSnapshot } from "../types.js";
 
 /** Bumped whenever {@link PaneSnapshot} changes shape. */
 export const PANE_SNAPSHOT_VERSION = 1;
@@ -94,6 +95,42 @@ export function readPaneSnapshot(path: string): PaneSnapshot | null {
  */
 export function resolveRequestPath(snapshotPath: string): string {
 	return `${snapshotPath}.request.json`;
+}
+
+/** Bumped whenever {@link SkillSnapshotFile} changes shape. */
+export const SKILL_SNAPSHOT_VERSION = 1;
+
+/**
+ * Structured skill-state sidecar (`<pane>.skills.json`). The pane snapshot only
+ * carries pre-rendered skill lines; this file keeps the raw pi-plugin-dev state
+ * so the native Rust sidebar can render the Skills face (guidance, focus, Gates)
+ * itself instead of parsing painted text.
+ */
+export interface SkillSnapshotFile {
+	version: number;
+	live: boolean;
+	generatedAt: string;
+	/** Latest pi-plugin-dev state, or `null` when no skill is active. */
+	state: SkillStateSnapshot | null;
+}
+
+/** Skills sidecar path: `<snapshot_path_without_ext>.skills.json`. */
+export function resolveSkillPath(snapshotPath: string): string {
+	const base = snapshotPath.replace(/\.json$/, "");
+	return `${base}.skills.json`;
+}
+
+/** Atomic write, same scheme as {@link writePaneSnapshot}. Never throws. */
+export function writeSkillSnapshot(path: string, snapshot: SkillSnapshotFile): boolean {
+	try {
+		mkdirSync(dirname(path), { recursive: true });
+		const tmp = `${path}.${process.pid}.tmp`;
+		writeFileSync(tmp, JSON.stringify(snapshot), "utf8");
+		renameSync(tmp, path);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /**

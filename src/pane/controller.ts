@@ -25,11 +25,15 @@ import {
 } from "./herdr.js";
 import {
 	PANE_SNAPSHOT_VERSION,
+	SKILL_SNAPSHOT_VERSION,
 	type PaneSnapshot,
+	type SkillSnapshotFile,
 	consumeClickRequest,
 	resolveRequestPath,
+	resolveSkillPath,
 	resolveSnapshotPath,
 	writePaneSnapshot,
+	writeSkillSnapshot,
 } from "./snapshot.js";
 
 /**
@@ -317,6 +321,17 @@ export class PaneController {
 			tabHits: frame.tabHits,
 		};
 		if (writePaneSnapshot(path, snapshot)) this.lastWriteAt = Date.now();
+
+		// Sidecar: raw skill state for the native Rust sidebar's Skills face
+		// (guidance, focus, Gates). Written with the same cadence; the Rust side
+		// keys off the pane snapshot mtime, so this must land before/with it.
+		const skillFile: SkillSnapshotFile = {
+			version: SKILL_SNAPSHOT_VERSION,
+			live,
+			generatedAt: new Date().toISOString(),
+			state: this.bridge.getState(),
+		};
+		writeSkillSnapshot(resolveSkillPath(path), skillFile);
 	}
 
 	private writeDead(reason: string): void {
