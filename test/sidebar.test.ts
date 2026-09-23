@@ -49,7 +49,7 @@ test("DEFAULT_CONFIG has valid OpenCode defaults", () => {
 	assert.equal(DEFAULT_CONFIG.showLsp, true);
 	assert.equal(DEFAULT_CONFIG.showExtensions, true);
 	assert.equal(DEFAULT_CONFIG.showGit, true);
-	assert.equal(DEFAULT_CONFIG.paneMode, "overlay");
+	assert.equal(DEFAULT_CONFIG.paneMode, "herdr");
 	assert.equal(DEFAULT_CONFIG.paneWidth, 32);
 	assert.equal(DEFAULT_CONFIG.paneKeepAlive, false);
 });

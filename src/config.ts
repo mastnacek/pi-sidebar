@@ -29,7 +29,7 @@ export const DEFAULT_CONFIG: SidebarConfig = {
 	borderStyle: "line",
 	tab: "status",
 	showTabBar: true,
-	paneMode: "overlay",
+	paneMode: "herdr",
 	paneWidth: 32,
 	paneKeepAlive: false,
 	showSession: true,
