@@ -167,6 +167,17 @@ export default function (pi: ExtensionAPI): void {
 		pi.on("session_start", (_event, ctx: ExtensionContext) => {
 			currentContext = ctx;
 
+			// Restore persisted config from session branch/entries if present
+			if (ctx.sessionManager) {
+				for (const entry of ctx.sessionManager.getEntries()) {
+					if (entry.type === "custom" && entry.customType === CONFIG_ENTRY_TYPE) {
+						if (entry.data && typeof entry.data === "object") {
+							setActiveConfig({ ...getActiveConfig(), ...(entry.data as Partial<SidebarConfig>) });
+						}
+					}
+				}
+			}
+
 			// Subscribe to pi-plugin-dev before mounting so the Skills tab renders
 			// from the first frame.
 			skillBridge.attach(pi);
