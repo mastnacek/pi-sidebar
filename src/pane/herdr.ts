@@ -113,7 +113,11 @@ export function readLayout(bin: string, paneId: string): HerdrLayout | null {
 export function findSidebarPane(bin: string, tabId: string): HerdrPaneInfo | null {
 	return (
 		listPanes(bin).find(
-			(pane) => pane.tab_id === tabId && pane.label === PANE_LABEL,
+			(pane) =>
+				pane.tab_id === tabId &&
+				(pane.label === PANE_LABEL ||
+					pane.label?.toLowerCase() === "pi-sidebar" ||
+					pane.label?.toLowerCase() === "pi sidebar"),
 		) ?? null
 	);
 }

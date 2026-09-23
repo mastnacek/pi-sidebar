@@ -143,21 +143,31 @@ export class PaneController {
 		renamePane(bin, paneId, PANE_LABEL);
 		// Write before spawning, so the renderer's first frame is already correct.
 		this.writeNow(ctx, config, true);
-		runRendererInPane(
-			bin,
-			paneId,
-			this.nodeBinary,
-			this.rendererPath,
-			this.snapshotPath,
-			RENDERER_POLL_MS,
-		);
+		if (!existing) {
+			runRendererInPane(
+				bin,
+				paneId,
+				this.nodeBinary,
+				this.rendererPath,
+				this.snapshotPath,
+				RENDERER_POLL_MS,
+			);
+		}
 		this.startRequestPolling();
 		return true;
 	}
 
 	/** Throttled, content-deduplicated snapshot update. Safe to call on any event. */
 	push(ctx: ExtensionContext, config: SidebarConfig): void {
-		if (!this.paneId) return;
+		if (!this.snapshotPath) {
+			const ownPane = currentPaneId();
+			if (ownPane) {
+				this.snapshotPath = resolveSnapshotPath(ownPane);
+				this.snapshotKey = ownPane;
+			}
+		}
+		if (!this.snapshotPath) return;
+
 		const elapsed = Date.now() - this.lastWriteAt;
 		if (elapsed >= MIN_WRITE_INTERVAL_MS) {
 			this.writeNow(ctx, config, true);

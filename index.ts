@@ -72,7 +72,10 @@ export default function (pi: ExtensionAPI): void {
 
 	const refreshUI = (): void => {
 		// A herdr pane has no TUI render pass of its own — push a snapshot instead.
-		if (paneController?.isActive() && currentContext) {
+		if (!currentContext) return;
+		if (!paneController || !paneController.isActive()) {
+			applyPane(currentContext);
+		} else {
 			paneController.push(currentContext, getActiveConfig());
 		}
 	};
