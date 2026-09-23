@@ -39,6 +39,7 @@ const COMMAND_DOCS: Record<string, string> = {
 	border:
 		"nastavit styl oddělovacího rámečku (line | double | dotted | space | none)",
 	tab: "přepnout záložku panelu (status | skills | next | prev)",
+	pane: "vykreslit panel v samostatném herdr pane (overlay | herdr)",
 	status: "zobrazit aktuální konfiguraci a stav panelu",
 	reset: "obnovit výchozí nastavení panelu",
 	help: "zobrazit přehled příkazů a nápovědu",
@@ -187,6 +188,26 @@ export function registerSidebarCommands(
 					return filtered.length > 0 ? filtered : null;
 				}
 
+				if (cmd === "pane") {
+					const paneOptions = [
+						{
+							value: "pane overlay",
+							label: "pane overlay",
+							description: "Vykreslovat v TUI pi jako překryv (výchozí)",
+						},
+						{
+							value: "pane herdr",
+							label: "pane herdr",
+							description:
+								"Vykreslovat v samostatném herdr pane (snapshot + renderer)",
+						},
+					];
+					const filtered = paneOptions.filter((i) =>
+						i.value.toLowerCase().startsWith(normalizedPrefix),
+					);
+					return filtered.length > 0 ? filtered : null;
+				}
+
 				if (cmd === "preset") {
 					const presets = [
 						{
@@ -290,6 +311,7 @@ export function registerSidebarCommands(
 				"branding",
 				"border",
 				"tab",
+				"pane",
 			]);
 			const items: AutocompleteItem[] = [];
 			for (const [key, description] of Object.entries(COMMAND_DOCS)) {
@@ -361,6 +383,7 @@ export function registerSidebarCommands(
 					"  /sidebar branding <typ>    — Styl patičky (opencode | pi | custom <text>)",
 					"  /sidebar border <styl>     — Styl oddělovače (line | double | dotted | space | none)",
 					"  /sidebar tab <záložka>     — Přepnout záložku (status | skills | next | prev)",
+					"  /sidebar pane <režim>      — Vykreslení panelu (overlay | herdr)",
 					"  /sidebar reset             — Obnovit výchozí nastavení",
 					"  /sidebar help              — Zobrazit tuto nápovědu",
 					"",
@@ -487,6 +510,7 @@ export function registerSidebarCommands(
 						`Záložka: ${current.tab}`,
 						`Šířka: ${current.width} sloupců | Min. šířka terminálu: ${current.minTerminalWidth}`,
 						`Styl: ${current.preset} | Rozšíření: ${current.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
+						`Režim: ${current.paneMode}${current.paneMode === "herdr" ? ` (${current.paneWidth} sloupců)` : ""}`,
 						`Patička: ${current.branding} | Rámeček: ${current.borderStyle}`,
 					].join(" | ");
 					notify(ctx, msg, "info");
@@ -626,6 +650,22 @@ export function registerSidebarCommands(
 						"info",
 					);
 					break;
+
+				case "pane": {
+					const val = value.toLowerCase();
+					if (val === "overlay" || val === "herdr") {
+						nextConfig.paneMode = val;
+					} else {
+						nextConfig.paneMode =
+							current.paneMode === "herdr" ? "overlay" : "herdr";
+					}
+					notify(
+						ctx,
+						`Režim panelu: ${nextConfig.paneMode === "herdr" ? "samostatný herdr pane" : "překryv v TUI"}`,
+						"info",
+					);
+					break;
+				}
 
 				default:
 					notify(ctx, 

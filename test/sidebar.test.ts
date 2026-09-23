@@ -1,11 +1,22 @@
 import assert from "node:assert/strict";
+import { rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import {
 	DEFAULT_CONFIG,
 	getActiveConfig,
 	setActiveConfig,
 } from "../src/config.js";
 import { formatProjectPath, getGitInfo } from "../src/git.js";
+import { clampPaneWidth, computeSplitRatio } from "../src/pane/herdr.js";
+import { buildPaneFrame, buildPaneLines } from "../src/pane/lines.js";
+import {
+	readPaneSnapshot,
+	resolveSnapshotPath,
+	writePaneSnapshot,
+} from "../src/pane/snapshot.js";
 import { contextBar, formatResetTime } from "../src/quota.js";
 import { SidebarComponent } from "../src/sidebar-component.js";
 import { isBrailleRow, ringGauge } from "../src/gauge.js";
@@ -35,6 +46,9 @@ test("DEFAULT_CONFIG has valid OpenCode defaults", () => {
 	assert.equal(DEFAULT_CONFIG.showLsp, true);
 	assert.equal(DEFAULT_CONFIG.showExtensions, true);
 	assert.equal(DEFAULT_CONFIG.showGit, true);
+	assert.equal(DEFAULT_CONFIG.paneMode, "overlay");
+	assert.equal(DEFAULT_CONFIG.paneWidth, 32);
+	assert.equal(DEFAULT_CONFIG.paneKeepAlive, false);
 });
 
 test("formatTokens formats token counts cleanly", () => {
@@ -455,6 +469,40 @@ test("clicking the Skills tab switches the panel and persists it", () => {
 	setActiveConfig(DEFAULT_CONFIG);
 });
 
+test("Skills tab shows only HUD, Model, Context, Git and Shortcuts", () => {
+	const { tui, pi, ctx, theme } = mockSidebarDeps();
+	setActiveConfig({ ...DEFAULT_CONFIG, tab: "skills", width: 28 });
+	const sidebar = new SidebarComponent(tui, pi, ctx, theme);
+	const rows = sidebar.render(28);
+	const all = rows.join("\n");
+
+	// Required sections, in order.
+	const order = [
+		"Waiting for pi-plugin-dev",
+		"MODEL",
+		"test-model",
+		"CONTEXT",
+		"GIT",
+		"ZKRATKY",
+	];
+	let cursor = 0;
+	for (const needle of order) {
+		const idx = all.indexOf(needle, cursor);
+		assert.ok(idx >= 0, `missing or out of order: ${needle}`);
+		cursor = idx + needle.length;
+	}
+
+	// Nothing else: no session, quota, tokens/cache, MCP, LSP, extensions, branding.
+	assert.ok(!all.includes("Session"), "session line must not render");
+	assert.ok(!all.includes("KVÓTY"), "quota must not render");
+	assert.ok(!all.includes("TOKENY"), "tokens/cache must not render");
+	assert.ok(!all.includes("MCP"), "MCP must not render");
+	assert.ok(!all.includes("LSP"), "LSP must not render");
+	assert.ok(!all.includes("ROZŠÍŘENÍ"), "extensions must not render");
+	assert.ok(!all.includes("Pi Agent v0.84.4"), "branding must not render");
+	setActiveConfig(DEFAULT_CONFIG);
+});
+
 test("handleMouse ignores clicks outside the tab-bar row", () => {
 	const { tui, pi, ctx, theme } = mockSidebarDeps();
 	setActiveConfig({ ...DEFAULT_CONFIG, tab: "status", width: 28 });
@@ -497,4 +545,187 @@ test("tabs can be disabled via showTabBar", () => {
 		undefined,
 	);
 	setActiveConfig(DEFAULT_CONFIG);
+});
+
+// ---------------------------------------------------------------------------
+// herdr pane mode (snapshot bridge + standalone renderer)
+// ---------------------------------------------------------------------------
+
+test("pane width is clamped to a readable range", () => {
+	assert.equal(clampPaneWidth(32), 32);
+	assert.equal(clampPaneWidth(4), 16);
+	assert.equal(clampPaneWidth(500), 60);
+	assert.equal(clampPaneWidth(Number.NaN), 32);
+});
+
+test("computeSplitRatio yields herdr's left-pane fraction for the target width", () => {
+	// Matches the measured default sidebar: 32 columns of a 152-column tab.
+	assert.equal(computeSplitRatio(152, 32), 0.789474);
+	// Degenerate requests clamp instead of collapsing the split.
+	assert.equal(computeSplitRatio(152, 4), 0.894737);
+	assert.equal(computeSplitRatio(20, 60), 0.15);
+	assert.ok(computeSplitRatio(152, 32) > 0 && computeSplitRatio(152, 32) < 1);
+});
+
+test("pane snapshot round-trips through its wire format", () => {
+	const path = join(tmpdir(), `pi-sidebar-pane-test-${process.pid}.json`);
+	const snapshot = {
+		version: 1,
+		live: true,
+		key: "w1M:p1",
+		revision: 7,
+		width: 32,
+		generatedAt: new Date().toISOString(),
+		lines: ["│ one", "│ two"],
+	};
+
+	assert.equal(writePaneSnapshot(path, snapshot), true);
+	const read = readPaneSnapshot(path);
+	assert.equal(read?.revision, 7);
+	assert.equal(read?.live, true);
+	assert.deepEqual(read?.lines, ["│ one", "│ two"]);
+
+	rmSync(path, { force: true });
+	assert.equal(readPaneSnapshot(path), null);
+});
+
+test("resolveSnapshotPath keys the snapshot by pane id", () => {
+	assert.ok(resolveSnapshotPath("w1M:p1").endsWith(join("pi-sidebar", "w1M_p1.json")));
+	assert.ok(resolveSnapshotPath(null).endsWith("unbound.json"));
+});
+
+test("buildPaneLines renders HUD, model, context, git and shortcuts only", () => {
+	const bridge = new SkillBridge();
+	const lines = buildPaneLines({
+		width: 32,
+		bridge,
+		face: "skills",
+		modelId: "deepseek/test-model",
+		modelProvider: "test-provider",
+		thinkingLevel: "high",
+		contextPercent: 42,
+		git: { branch: "main", dirty: false, ahead: 0, behind: 0 },
+		cwd: process.cwd(),
+		color: (_token: string, text: string) => text,
+	});
+	const all = lines.join("\n");
+
+	assert.ok(all.includes("Waiting for pi-plugin-dev"));
+	assert.ok(all.includes("MODEL"));
+	assert.ok(all.includes("deepseek/test-model"));
+	assert.ok(all.includes("CONTEXT"));
+	assert.ok(all.includes("42%"));
+	assert.ok(all.includes("GIT"));
+	assert.ok(all.includes("ZKRATKY"));
+
+	// Excluded telemetry must never leak into the pane face.
+	assert.ok(!all.includes("TOKENY"));
+	assert.ok(!all.includes("MCP"));
+	assert.ok(!all.includes("LSP"));
+	assert.ok(!all.includes("ROZŠÍŘENÍ"));
+	assert.ok(!all.includes("Pi Agent v0.84.4"));
+
+	// Every line is padded to the exact pane width, so the renderer paints blindly.
+	for (const line of lines) {
+		assert.ok(visibleWidth(line) <= 32, `line wider than pane: ${line}`);
+	}
+	assert.ok(lines.some((line) => line.endsWith(" ")), "lines should be padded");
+});
+
+test("pane frame renders the Status | Skills tab strip with click ranges", () => {
+	const bridge = new SkillBridge();
+	const frame = buildPaneFrame({
+		width: 30,
+		bridge,
+		face: "skills",
+		activeTab: "skills",
+		modelId: "m",
+		thinkingLevel: "off",
+		contextPercent: 12,
+		git: { branch: null, dirty: false, ahead: 0, behind: 0 },
+		cwd: process.cwd(),
+		color: (_token: string, text: string) => text,
+	});
+	const all = frame.lines.join("\n");
+
+	// Strip is row 0, separator row 1, content below.
+	assert.ok(frame.lines[0].includes("Status"));
+	assert.ok(frame.lines[0].includes("Skills"));
+	assert.ok(frame.lines[1].includes("─"));
+	assert.equal(frame.tabHits.length, 2);
+	assert.equal(frame.tabHits[0].id, "status");
+	assert.equal(frame.tabHits[1].id, "skills");
+	assert.ok(
+		frame.tabHits[0].start < frame.tabHits[1].start,
+		"status must sit before skills",
+	);
+
+	// Ranges are relative to the content area and stay inside the padded line.
+	for (const hit of frame.tabHits) {
+		assert.ok(hit.start >= 0 && hit.end <= 30, `bad range ${JSON.stringify(hit)}`);
+	}
+
+	assert.ok(all.includes("MODEL"));
+	assert.ok(all.includes("CONTEXT"));
+	assert.ok(all.includes("Waiting for pi-plugin-dev"));
+});
+
+test("pane frame keeps face and active tab consistent", () => {
+	const bridge = new SkillBridge();
+	const frame = buildPaneFrame({
+		width: 30,
+		bridge,
+		face: "status",
+		activeTab: "status",
+		sessionTitle: "sess-x",
+		modelId: "m",
+		thinkingLevel: "off",
+		contextPercent: null,
+		git: { branch: null, dirty: false, ahead: 0, behind: 0 },
+		cwd: process.cwd(),
+		color: (_token: string, text: string) => text,
+	});
+	const all = frame.lines.join("\n");
+	assert.ok(all.includes("sess-x"));
+	assert.ok(!all.includes("Waiting for pi-plugin-dev"));
+	assert.equal(frame.tabHits.length, 2);
+});
+
+test("legacy buildPaneLines still returns the painted lines", () => {
+	const bridge = new SkillBridge();
+	const lines = buildPaneLines({
+		width: 30,
+		bridge,
+		modelId: "m",
+		thinkingLevel: "off",
+		contextPercent: 5,
+		git: { branch: null, dirty: false, ahead: 0, behind: 0 },
+		cwd: process.cwd(),
+		color: (_token: string, text: string) => text,
+	});
+	assert.ok(Array.isArray(lines));
+	assert.ok(lines.length > 0);
+	assert.ok(lines.join("\n").includes("MODEL"));
+});
+
+test("status face drops the skill HUD but keeps model and context", () => {
+	const bridge = new SkillBridge();
+	const lines = buildPaneLines({
+		width: 32,
+		bridge,
+		face: "status",
+		sessionTitle: "my-session",
+		modelId: "m",
+		thinkingLevel: "off",
+		contextPercent: null,
+		git: { branch: null, dirty: false, ahead: 0, behind: 0 },
+		cwd: process.cwd(),
+		color: (_token: string, text: string) => text,
+	});
+	const all = lines.join("\n");
+
+	assert.ok(all.includes("my-session"));
+	assert.ok(!all.includes("Waiting for pi-plugin-dev"));
+	assert.ok(all.includes("MODEL"));
+	assert.ok(all.includes("CONTEXT"));
 });

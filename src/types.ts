@@ -1,5 +1,10 @@
 export type SidebarPreset = "opencode" | "compact" | "detailed" | "minimal";
 export type SidebarBranding = "opencode" | "pi" | "custom";
+/**
+ * Where the panel is drawn: inside pi's own TUI as an overlay, or in a separate
+ * herdr pane fed by a snapshot file.
+ */
+export type SidebarPaneMode = "overlay" | "herdr";
 /** Switchable panel faces. `status` = telemetry, `skills` = pi-plugin-dev skill HUD. */
 export type SidebarTab = "status" | "skills";
 export type SidebarBorderStyle =
@@ -21,6 +26,12 @@ export interface SidebarConfig {
 	tab: SidebarTab;
 	/** Show the clickable tab bar at the top of the panel. */
 	showTabBar: boolean;
+	/** Render inside pi's TUI (overlay) or in a dedicated herdr pane. */
+	paneMode: SidebarPaneMode;
+	/** Width in columns of the herdr pane (ignored in overlay mode). */
+	paneWidth: number;
+	/** Keep the herdr pane open (with a final frame) after the session ends. */
+	paneKeepAlive: boolean;
 	showSession: boolean;
 	showModel: boolean;
 	showContext: boolean;

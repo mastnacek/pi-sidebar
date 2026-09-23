@@ -4,6 +4,7 @@ import type {
 	Theme,
 } from "@earendil-works/pi-coding-agent";
 import type { Component, OverlayHandle, TUI } from "@earendil-works/pi-tui";
+import { fileURLToPath } from "node:url";
 import { registerSidebarCommands } from "./src/commands.js";
 import {
 	CONFIG_ENTRY_TYPE,
@@ -12,6 +13,8 @@ import {
 	setActiveConfig,
 } from "./src/config.js";
 import { SidebarAwareEditor } from "./src/editor-wrapper.js";
+import { PaneController } from "./src/pane/controller.js";
+import { isHerdrSession } from "./src/pane/herdr.js";
 import { refreshKimiQuota, refreshZaiQuota } from "./src/quota.js";
 import { SidebarComponent } from "./src/sidebar-component.js";
 import { SkillBridge } from "./src/skills-tab.js";
@@ -104,6 +107,15 @@ export default function (pi: ExtensionAPI): void {
 	let busyInterval: ReturnType<typeof setInterval> | null = null;
 	/** Read-only subscriber to pi-plugin-dev's published skill snapshot. */
 	const skillBridge = new SkillBridge();
+	/**
+	 * herdr-pane mirror (`paneMode: "herdr"`). Null until started; a separate
+	 * process renders it from a snapshot file, so nothing here touches LLM context.
+	 */
+	let paneController: PaneController | null = null;
+	/** Standalone renderer shipped next to this file (plain ESM, zero deps). */
+	const rendererPath = fileURLToPath(
+		new URL("./src/pane/renderer.mjs", import.meta.url),
+	);
 	/** Undoes the shared `ctx.ui.setFooter` capture installed on session_start. */
 	let restoreFooterCapture: (() => void) | null = null;
 
@@ -136,6 +148,10 @@ export default function (pi: ExtensionAPI): void {
 	}
 
 	const refreshUI = () => {
+		// A herdr pane has no TUI render pass of its own — push a snapshot instead.
+		if (paneController?.isActive() && currentContext) {
+			paneController.push(currentContext, getActiveConfig());
+		}
 		if (currentTui && currentContext && currentTheme) {
 			if (sidebarComponent) {
 				sidebarComponent.updateContext(currentContext);
@@ -183,9 +199,38 @@ export default function (pi: ExtensionAPI): void {
 		}
 
 		if (!config.enabled) {
+			paneController?.stop(config);
 			if (ctx.hasUI) ctx.ui.setEditorComponent(undefined);
 			tui.requestRender();
 			return;
+		}
+
+		// herdr pane mode: the sidebar lives in its own terminal pane, so pi keeps
+		// the full terminal width and no overlay/editor wrapper is installed.
+		if (config.paneMode === "herdr" && isHerdrSession()) {
+			sidebarComponent = null;
+			if (ctx.hasUI) ctx.ui.setEditorComponent(undefined);
+			if (!paneController) {
+				paneController = new PaneController({
+					pi,
+					bridge: skillBridge,
+					rendererPath,
+				});
+			}
+			paneController.setTheme(theme);
+			if (!paneController.isActive()) {
+				paneController.start(ctx, config);
+			} else {
+				paneController.push(ctx, config);
+			}
+			pollActiveQuotas();
+			tui.requestRender();
+			return;
+		}
+
+		// Leaving herdr mode: tear the pane down so the two faces never both exist.
+		if (paneController?.isActive()) {
+			paneController.stop(getActiveConfig());
 		}
 
 		if (sidebarComponent) {
@@ -351,6 +396,8 @@ export default function (pi: ExtensionAPI): void {
 		}
 		unsubBranch?.();
 		unsubBranch = null;
+		paneController?.stop(getActiveConfig());
+		paneController = null;
 		// Undo the process-wide mutations we installed on the shared ctx.ui object.
 		restoreFooterCapture?.();
 		restoreFooterCapture = null;

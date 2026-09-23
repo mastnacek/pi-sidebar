@@ -6,6 +6,7 @@ import type {
 	SidebarBorderStyle,
 	SidebarBranding,
 	SidebarConfig,
+	SidebarPaneMode,
 	SidebarPreset,
 	SidebarTab,
 } from "./types.js";
@@ -28,6 +29,9 @@ export const DEFAULT_CONFIG: SidebarConfig = {
 	borderStyle: "line",
 	tab: "status",
 	showTabBar: true,
+	paneMode: "overlay",
+	paneWidth: 32,
+	paneKeepAlive: false,
 	showSession: true,
 	showModel: true,
 	showContext: true,
@@ -156,6 +160,21 @@ function resolveTab(
 	return fallback;
 }
 
+function resolvePaneMode(
+	sessionVal?: string,
+	globalVal?: string,
+	fallback: SidebarPaneMode = "overlay",
+): SidebarPaneMode {
+	const valid: SidebarPaneMode[] = ["overlay", "herdr"];
+	if (sessionVal && valid.includes(sessionVal as SidebarPaneMode)) {
+		return sessionVal as SidebarPaneMode;
+	}
+	if (globalVal && valid.includes(globalVal as SidebarPaneMode)) {
+		return globalVal as SidebarPaneMode;
+	}
+	return fallback;
+}
+
 export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 	const globalCfg = loadGlobalConfig();
 	let sessionCfg: Partial<SidebarConfig> | null = null;
@@ -217,6 +236,23 @@ export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 			sessionCfg?.showTabBar,
 			globalCfg.showTabBar,
 			DEFAULT_CONFIG.showTabBar,
+		),
+		paneMode: resolvePaneMode(
+			sessionCfg?.paneMode,
+			globalCfg.paneMode,
+			DEFAULT_CONFIG.paneMode,
+		),
+		paneWidth: resolveNumber(
+			sessionCfg?.paneWidth,
+			globalCfg.paneWidth,
+			DEFAULT_CONFIG.paneWidth,
+			16,
+			60,
+		),
+		paneKeepAlive: resolveBoolean(
+			sessionCfg?.paneKeepAlive,
+			globalCfg.paneKeepAlive,
+			DEFAULT_CONFIG.paneKeepAlive,
 		),
 		showSession: resolveBoolean(
 			sessionCfg?.showSession,

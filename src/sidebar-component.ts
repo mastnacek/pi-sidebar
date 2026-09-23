@@ -7,6 +7,7 @@ import {
 	type Component,
 	type TUI,
 	sliceByColumn,
+	truncateToWidth,
 	visibleWidth,
 } from "@earendil-works/pi-tui";
 import { existsSync } from "node:fs";
@@ -342,6 +343,34 @@ export class SidebarComponent implements Component {
 					? accent
 					: success;
 
+		/** Brief telemetry (session · model · context/cost/tokens) for the `compact` status preset. */
+		const compactSummary = (): string[] => {
+			const lines: string[] = [];
+
+			if (config.showSession) {
+				const sessionName = this.ctx.sessionManager.getSessionName();
+				const title = sessionName ? `🏷️ ${sessionName}` : "Session";
+				lines.push(muted(title));
+			}
+
+			if (config.showModel && model) {
+				const level = this.pi.getThinkingLevel() || "off";
+				const emoji = THINKING_EMOJI[level] ?? "🧠";
+				lines.push(accent(`${model.id} • ${emoji}`));
+			}
+
+			if (config.showContext) {
+				const pctStr =
+					percentValue === null ? "?%" : `${percentValue.toFixed(0)}%`;
+				const costStr = `$${(stats.totalCost || 0).toFixed(2)}`;
+				lines.push(
+					`${ctxColor(pctStr)} ${dim("│")} ${warning(costStr)} ${dim("│")} ${muted(formatTokensCompact(stats.totalInputTokens + stats.totalOutputTokens))}`,
+				);
+			}
+
+			return lines;
+		};
+
 		// =========================================================================
 		// TAB BAR (click in fullscreen, or switch via keyboard / /sidebar tab)
 		// =========================================================================
@@ -366,6 +395,7 @@ export class SidebarComponent implements Component {
 		// TAB: SKILLS (pi-plugin-dev snapshot off the shared event bus)
 		// =========================================================================
 		if (config.tab === "skills") {
+			// 1. Skill usage HUD (pi-plugin-dev tracker snapshot)
 			topLines.push(
 				...renderSkillsPanel(
 					this.skillBridge,
@@ -374,6 +404,38 @@ export class SidebarComponent implements Component {
 					(text: string, maxWidth: number) => this.wrapText(text, maxWidth),
 				),
 			);
+			topLines.push("");
+
+			// 2. Selected model
+			if (config.showModel && model) {
+				topLines.push(header("MODEL", "🤖"));
+				topLines.push(accent(truncateToWidth(model.id, innerWidth)));
+				if (model.provider) {
+					topLines.push(dim(truncateToWidth(`(${model.provider})`, innerWidth)));
+				}
+				const level = this.pi.getThinkingLevel() || "off";
+				topLines.push(
+					th.fg(
+						THINKING_TOKEN[level] ?? "thinkingOff",
+						truncateToWidth(
+							`${THINKING_EMOJI[level] ?? "🧠"} thinking: ${level}`,
+							innerWidth,
+						),
+					),
+				);
+				topLines.push("");
+			}
+
+			// 3. Context (bar + percent only — no tokens, no cost)
+			if (config.showContext) {
+				topLines.push(header("CONTEXT", "📊"));
+				const barW = Math.max(6, Math.min(10, innerWidth - 6));
+				const bar = ctxColor(contextBar(percentValue, barW));
+				const pctStr =
+					percentValue === null ? "?%" : `${percentValue.toFixed(1)}%`;
+				topLines.push(`${bar} ${ctxColor(pctStr)}`);
+				topLines.push("");
+			}
 		}
 
 		// =========================================================================
@@ -545,7 +607,7 @@ export class SidebarComponent implements Component {
 		// =========================================================================
 		// PRESET: DETAILED (Full, comprehensive vertical telemetry)
 		// =========================================================================
-		else if (config.preset === "detailed") {
+		else if (config.tab === "status" && config.preset === "detailed") {
 			// 1. Session Section
 			if (config.showSession) {
 				topLines.push(header("RELACE", "🏷️"));
@@ -798,33 +860,15 @@ export class SidebarComponent implements Component {
 		// =========================================================================
 		// PRESET: COMPACT (Minimal vertical lines)
 		// =========================================================================
-		else if (config.preset === "compact") {
-			if (config.showSession) {
-				const sessionName = this.ctx.sessionManager.getSessionName();
-				const title = sessionName ? `🏷️ ${sessionName}` : "Session";
-				topLines.push(muted(title));
-			}
-
-			if (config.showModel && model) {
-				const level = this.pi.getThinkingLevel() || "off";
-				const emoji = THINKING_EMOJI[level] ?? "🧠";
-				topLines.push(accent(`${model.id} • ${emoji}`));
-			}
-
-			if (config.showContext) {
-				const pctStr = percentValue === null ? "?%" : `${percentValue.toFixed(0)}%`;
-				const costStr = `$${(stats.totalCost || 0).toFixed(2)}`;
-				topLines.push(
-					`${ctxColor(pctStr)} ${dim("│")} ${warning(costStr)} ${dim("│")} ${muted(formatTokensCompact(stats.totalInputTokens + stats.totalOutputTokens))}`,
-				);
-				topLines.push("");
-			}
+		else if (config.tab === "status" && config.preset === "compact") {
+			topLines.push(...compactSummary());
+			topLines.push("");
 		}
 
 		// =========================================================================
 		// PRESET: OPENCODE (Standard OpenCode layout)
 		// =========================================================================
-		else {
+		else if (config.tab === "status") {
 			// 1. Session Section
 			if (config.showSession) {
 				const sessionName = this.ctx.sessionManager.getSessionName();
@@ -882,12 +926,27 @@ export class SidebarComponent implements Component {
 		// =========================================================================
 		// Bottom Section: Git & Workspace (hidden in minimal gauge strip)
 		// =========================================================================
-		if (config.showGit && config.preset !== "minimal") {
+		const isSkillsTab = config.tab === "skills";
+		if (config.showGit && (isSkillsTab || config.preset !== "minimal")) {
 			const cwd = this.ctx.cwd;
 			const gitInfo = getGitInfo(cwd);
 			const formattedPath = formatProjectPath(cwd, gitInfo.branch);
 
-			if (config.preset === "detailed") {
+			if (isSkillsTab) {
+				bottomLines.push(header("GIT", "🌿"));
+				const wrappedSkillPath = this.wrapText(`📁 ${formattedPath}`, innerWidth);
+				for (const line of wrappedSkillPath) {
+					bottomLines.push(th.fg("customMessageLabel", line));
+				}
+				if (gitInfo.branch) {
+					const dirtyIcon = gitInfo.dirty ? "● změny" : "○ čisté";
+					const dirtyColor = gitInfo.dirty ? warning : success;
+					let gitMeta = `🌿 ${gitInfo.branch} ${dirtyColor(dirtyIcon)}`;
+					if (gitInfo.ahead > 0) gitMeta += dim(` ▸${gitInfo.ahead}`);
+					if (gitInfo.behind > 0) gitMeta += dim(` ◂${gitInfo.behind}`);
+					bottomLines.push(gitMeta);
+				}
+			} else if (config.preset === "detailed") {
 				bottomLines.push(header("PRACOVNÍ PROSTOR", "📁"));
 				const wrappedPath = this.wrapText(`📁 ${formattedPath}`, innerWidth);
 				for (const line of wrappedPath) {
@@ -914,22 +973,24 @@ export class SidebarComponent implements Component {
 		// =========================================================================
 		// Permanent Shortcut Hints Section (hidden in minimal gauge strip)
 		// =========================================================================
-		if (config.preset !== "minimal") {
+		if (isSkillsTab || config.preset !== "minimal") {
 			bottomLines.push(header("ZKRATKY", "⌨️"));
 			bottomLines.push(dim("⌨️ ctrl+shift+b    « minimal pruh / zpět"));
 			bottomLines.push(dim("⌨️ ctrl+shift+←/→  šířka (±4)"));
 			bottomLines.push("");
 
 			// =====================================================================
-			// Branding Footer
+			// Branding Footer (Status tab only — Skills tab is strictly HUD+Model+Context+Git+Shortcuts)
 			// =====================================================================
-			let brandingText = "• OpenCode 1.18.26";
-			if (config.branding === "pi") {
-				brandingText = "• Pi Agent v0.84.4";
-			} else if (config.branding === "custom" && config.customBrandingText) {
-				brandingText = `• ${config.customBrandingText}`;
+			if (!isSkillsTab) {
+				let brandingText = "• OpenCode 1.18.26";
+				if (config.branding === "pi") {
+					brandingText = "• Pi Agent v0.84.4";
+				} else if (config.branding === "custom" && config.customBrandingText) {
+					brandingText = `• ${config.customBrandingText}`;
+				}
+				bottomLines.push(success(brandingText));
 			}
-			bottomLines.push(success(brandingText));
 		}
 
 		// =========================================================================
