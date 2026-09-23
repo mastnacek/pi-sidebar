@@ -14,9 +14,11 @@ export const PANE_LABEL = "pi-sidebar";
 
 /** Minimum pane width we will ever request (keeps the HUD readable). */
 export const MIN_PANE_WIDTH = 16;
-
-/** Upper clamp for a requested pane width; herdr's own sidebar max is 36. */
-export const MAX_PANE_WIDTH = 60;
+/**
+ * Upper clamp for a requested pane width. Raised from 60 so a wide pane can show
+ * full, unwrapped statusline/text; herdr clamps to the tab area if smaller.
+ */
+export const MAX_PANE_WIDTH = 120;
 
 export interface HerdrPaneInfo {
 	pane_id: string;

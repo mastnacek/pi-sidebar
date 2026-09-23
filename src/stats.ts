@@ -126,6 +126,17 @@ export function formatCost(cost: number): string {
 	return `$${cost.toFixed(2)} spent`;
 }
 
+/**
+ * Statusline-parity cost figure (no " spent" suffix), matching eldritch-footer /
+ * pi's footer: 3dp at zero, 4dp under a cent, 3dp under a dollar, else 2dp.
+ */
+export function formatCostRaw(cost: number): string {
+	if (cost === 0) return "0.000";
+	if (cost < 0.01) return cost.toFixed(4);
+	if (cost < 1) return cost.toFixed(3);
+	return cost.toFixed(2);
+}
+
 export function formatPercent(percent: number | null): string {
 	if (percent === null) return "0% used";
 	const clamped = Math.max(0, Math.min(100, percent));

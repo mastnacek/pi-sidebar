@@ -11,39 +11,27 @@ import {
 	saveGlobalConfig,
 	setActiveConfig,
 } from "./config.js";
+import { MAX_PANE_WIDTH, MIN_PANE_WIDTH } from "./pane/herdr.js";
 import { refreshKimiQuota, refreshZaiQuota } from "./quota.js";
 import { nextTab } from "./tabs.js";
-import type {
-	SidebarBorderStyle,
-	SidebarBranding,
-	SidebarConfig,
-	SidebarPreset,
-} from "./types.js";
+import type { SidebarConfig } from "./types.js";
 
 const COMMAND_DOCS: Record<string, string> = {
-	on: "rozbalit / zapnout postranní panel (sidebar overlay)",
-	off: "sbalit / vypnout postranní panel (sidebar overlay)",
-	toggle: "přepnout sbalení / rozbalení panelu (ctrl+shift+b)",
-	collapse: "sbalit postranní panel («)",
-	expand: "rozbalit postranní panel",
-	wider: "zvětšit šířku panelu (+4 sloupce, ctrl+shift+→)",
-	narrower: "zmenšit šířku panelu (-4 sloupce, ctrl+shift+←)",
-	mcp: "přepnout zobrazení MCP serverů v panelu (on | off | toggle)",
-	lsp: "přepnout zobrazení LSP stavu v panelu (on | off | toggle)",
-	extensions: "přepnout zobrazení rozšíření v panelu (on | off | toggle)",
-	width: "nastavit přesnou šířku panelu v sloupcích (8-60)",
-	resize: "upravit šířku panelu (+N nebo -N)",
-	preset: "přepnout styl zobrazení (opencode | compact | detailed | minimal)",
-	refresh: "vynutit aktualizaci kvót poskytovatelů (Kimi & Z.ai)",
-	branding: "přepnout text patičky (opencode | pi | custom)",
-	border:
-		"nastavit styl oddělovacího rámečku (line | double | dotted | space | none)",
-	tab: "přepnout záložku panelu (status | skills | next | prev)",
-	pane: "vykreslit panel v samostatném herdr pane (overlay | herdr)",
-	status: "zobrazit aktuální konfiguraci a stav panelu",
-	reset: "obnovit výchozí nastavení panelu",
+	on: "otevřít herdr pane postranního panelu",
+	off: "zavřít herdr pane postranního panelu",
+	toggle: "přepnout herdr pane",
+	width: `nastavit přesnou šířku pane ve sloupcích (${MIN_PANE_WIDTH}-${MAX_PANE_WIDTH})`,
+	wider: "zvětšit šířku pane (+4 sloupce)",
+	narrower: "zmenšit šířku pane (-4 sloupce)",
+	tab: "přepnout záložku pane (status | skills | next | prev)",
+	refresh: "vynutit obnovení kvót poskytovatelů (Kimi & Z.ai)",
+	status: "zobrazit aktuální stav pane",
+	reset: "obnovit výchozí nastavení",
 	help: "zobrazit přehled příkazů a nápovědu",
 };
+
+/** Subcommands that accept a further argument (Trailing Space Contract). */
+const NON_TERMINAL = new Set(["width", "tab"]);
 
 /**
  * UI-safe notify: falls back to stdout when running headless (AGENTS.md §6).
@@ -66,7 +54,7 @@ export function registerSidebarCommands(
 	onConfigChanged: (config: SidebarConfig, ctx: ExtensionContext) => void,
 ): void {
 	pi.registerCommand("sidebar", {
-		description: "Správa a nastavení rozbalovacího postranního panelu (sidebar)",
+		description: "Správa herdr pane panelu (šířka, záložka, kvóty)",
 		getArgumentCompletions: async (
 			prefix: string,
 		): Promise<AutocompleteItem[] | null> => {
@@ -74,107 +62,44 @@ export function registerSidebarCommands(
 			const trailingSpace = /\s$/.test(prefix);
 			const normalizedPrefix = tokens.join(" ").toLowerCase();
 
+			// Current-value annotation (same contract as pi-plugin-dev): the active
+			// choice carries a ✓ in its `label` and `● AKTIVNÍ` in its `description`.
+			// `value` stays clean so it can be inserted verbatim into the editor.
+			const cfgNow = getActiveConfig();
+			const mark = (active: boolean, text: string): string =>
+				active ? `${text} · ● AKTIVNÍ` : text;
+
 			// 2nd-level completions
 			if (tokens.length > 1 || (trailingSpace && tokens.length === 1)) {
 				const cmd = (tokens[0] ?? "").toLowerCase();
 
-				if (
-					[
-						"on",
-						"off",
-						"toggle",
-						"collapse",
-						"expand",
-						"wider",
-						"narrower",
-						"status",
-						"refresh",
-						"reset",
-						"help",
-					].includes(cmd)
-				) {
+				if (cmd === "width") {
+					// Free-form number: no completion list, let the user type it.
 					return null;
-				}
-
-				if (
-					cmd === "extensions" ||
-					cmd === "statusline" ||
-					cmd === "mcp" ||
-					cmd === "lsp"
-				) {
-					const extOptions = [
-						{
-							value: `${cmd} on`,
-							label: `${cmd} on`,
-							description: `Zapnout sekci ${cmd.toUpperCase()} v postranním panelu`,
-						},
-						{
-							value: `${cmd} off`,
-							label: `${cmd} off`,
-							description: `Skrýt sekci ${cmd.toUpperCase()} z postranního panelu`,
-						},
-						{
-							value: `${cmd} toggle`,
-							label: `${cmd} toggle`,
-							description: `Přepnout sekci ${cmd.toUpperCase()} v panelu`,
-						},
-					];
-					const filtered = extOptions.filter((i) =>
-						i.value.toLowerCase().startsWith(normalizedPrefix),
-					);
-					return filtered.length > 0 ? filtered : null;
-				}
-
-				if (cmd === "width" || cmd === "resize") {
-					const widths = [
-						{
-							value: `${cmd} 10`,
-							label: `${cmd} 10`,
-							description: "Minimální pruh (10 sloupců, preset minimal)",
-						},
-						{
-							value: `${cmd} 24`,
-							label: `${cmd} 24`,
-							description: "Kompaktní šířka (24 sloupců)",
-						},
-						{
-							value: `${cmd} 28`,
-							label: `${cmd} 28`,
-							description: "Výchozí šířka (28 sloupců)",
-						},
-						{
-							value: `${cmd} 32`,
-							label: `${cmd} 32`,
-							description: "Standardní šířka (32 sloupců)",
-						},
-						{
-							value: `${cmd} 36`,
-							label: `${cmd} 36`,
-							description: "Široký panel (36 sloupců)",
-						},
-					];
-					const filtered = widths.filter((i) =>
-						i.value.toLowerCase().startsWith(normalizedPrefix),
-					);
-					return filtered.length > 0 ? filtered : null;
 				}
 
 				if (cmd === "tab") {
 					const tabs = [
 						{
 							value: "tab status",
-							label: "tab status",
-							description: "Telemetrie: kontext, model, kvóty, git, MCP, LSP",
+							label: `tab status${cfgNow.tab === "status" ? " ✓" : ""}`,
+							description: mark(
+								cfgNow.tab === "status",
+								"Telemetrie: kontext, cena, tokeny, model, git",
+							),
 						},
 						{
 							value: "tab skills",
-							label: "tab skills",
-							description: "Skill HUD z pi-plugin-dev (reference, focus, compliance)",
+							label: `tab skills${cfgNow.tab === "skills" ? " ✓" : ""}`,
+							description: mark(
+								cfgNow.tab === "skills",
+								"Skill HUD z pi-plugin-dev (reference, focus, compliance)",
+							),
 						},
 						{
 							value: "tab next",
 							label: "tab next",
-							description: "Přepnout na další záložku (ctrl+shift+t)",
+							description: "Přepnout na další záložku",
 						},
 						{
 							value: "tab prev",
@@ -188,140 +113,23 @@ export function registerSidebarCommands(
 					return filtered.length > 0 ? filtered : null;
 				}
 
-				if (cmd === "pane") {
-					const paneOptions = [
-						{
-							value: "pane overlay",
-							label: "pane overlay",
-							description: "Vykreslovat v TUI pi jako překryv (výchozí)",
-						},
-						{
-							value: "pane herdr",
-							label: "pane herdr",
-							description:
-								"Vykreslovat v samostatném herdr pane (snapshot + renderer)",
-						},
-					];
-					const filtered = paneOptions.filter((i) =>
-						i.value.toLowerCase().startsWith(normalizedPrefix),
-					);
-					return filtered.length > 0 ? filtered : null;
-				}
-
-				if (cmd === "preset") {
-					const presets = [
-						{
-							value: "preset opencode",
-							label: "preset opencode",
-							description: "Klasické OpenCode rozložení panelu",
-						},
-						{
-							value: "preset compact",
-							label: "preset compact",
-							description: "Minimální kompaktní vertikální linka",
-						},
-						{
-							value: "preset detailed",
-							label: "preset detailed",
-							description: "Kompletní telemetrie, kvóty a kontextový pruh",
-						},
-						{
-							value: "preset minimal",
-							label: "preset minimal",
-							description: "Úzký pruh ukazatelů — kruhový kontextový graf a tečky",
-						},
-					];
-					const filtered = presets.filter((i) =>
-						i.value.toLowerCase().startsWith(normalizedPrefix),
-					);
-					return filtered.length > 0 ? filtered : null;
-				}
-
-				if (cmd === "branding") {
-					const brandings = [
-						{
-							value: "branding opencode",
-							label: "branding opencode",
-							description: "• OpenCode 1.18.26",
-						},
-						{
-							value: "branding pi",
-							label: "branding pi",
-							description: "• Pi Agent v0.84.4",
-						},
-						{
-							value: "branding custom",
-							label: "branding custom",
-							description: "Vlastní text v patičce",
-						},
-					];
-					const filtered = brandings.filter((i) =>
-						i.value.toLowerCase().startsWith(normalizedPrefix),
-					);
-					return filtered.length > 0 ? filtered : null;
-				}
-
-				if (cmd === "border") {
-					const borders = [
-						{
-							value: "border line",
-							label: "border line",
-							description: "Jednoduchá svislá čára (│)",
-						},
-						{
-							value: "border double",
-							label: "border double",
-							description: "Dvojitá svislá čára (║)",
-						},
-						{
-							value: "border dotted",
-							label: "border dotted",
-							description: "Tečkovaná svislá čára (┆)",
-						},
-						{
-							value: "border space",
-							label: "border space",
-							description: "Oddělení mezerou",
-						},
-						{
-							value: "border none",
-							label: "border none",
-							description: "Bez oddělovače",
-						},
-					];
-					const filtered = borders.filter((i) =>
-						i.value.toLowerCase().startsWith(normalizedPrefix),
-					);
-					return filtered.length > 0 ? filtered : null;
-				}
-
 				return null;
 			}
 
 			// 1st-level completions
 			const typed = (tokens[0] ?? "").toLowerCase();
-			const NON_TERMINAL = new Set([
-				"extensions",
-				"statusline",
-				"mcp",
-				"lsp",
-				"width",
-				"resize",
-				"preset",
-				"branding",
-				"border",
-				"tab",
-				"pane",
-			]);
 			const items: AutocompleteItem[] = [];
 			for (const [key, description] of Object.entries(COMMAND_DOCS)) {
-				if (key.toLowerCase().startsWith(typed)) {
-					items.push({
-						value: NON_TERMINAL.has(key) ? `${key} ` : key,
-						label: key,
-						description,
-					});
-				}
+				if (!key.toLowerCase().startsWith(typed)) continue;
+				const flag =
+					key === "on" ? cfgNow.enabled : key === "off" ? !cfgNow.enabled : undefined;
+				const state =
+					flag === undefined ? "" : flag ? " · ● ZAPNUTO" : " · ○ VYPNUTO";
+				items.push({
+					value: NON_TERMINAL.has(key) ? `${key} ` : key,
+					label: key,
+					description: `${description}${state}`,
+				});
 			}
 
 			return items.length > 0 ? items : null;
@@ -337,7 +145,6 @@ export function registerSidebarCommands(
 			const rest = cleanTokens.slice(1);
 			const value = rest.join(" ").trim();
 
-			// Help reference display
 			if (
 				!subcommand ||
 				subcommand === "help" ||
@@ -346,56 +153,26 @@ export function registerSidebarCommands(
 			) {
 				const cfg = getActiveConfig();
 				const helpText = [
-					"# /sidebar — Správce rozbalovacího postranního panelu",
-					"Ukotvený pravý postranní panel s dynamickou změnou šířky a telemetrií.",
-					"",
-					"### Klávesové zkratky a ovládání:",
-					"  ctrl+shift+b               — Přepnout minimal pruh / předchozí styl",
-					"  ctrl+shift+→/←             — Zvětšit / zmenšit šířku panelu (±4 sloupce)",
-					"  ctrl+shift+t               — Přepnout záložku panelu (Status ↔ Skills)",
-					"  ctrl+shift+1 / ctrl+shift+2 — Přímé přepnutí na záložku Status / Skills",
-					"",
-					"### Trvalá nápověda zkratek:",
-					"  Zkratkový tahák je trvale zobrazen ve spodní části postranního panelu.",
-					"",
-					"### Význam ukazatelů v minimal pruhu (preset minimal / ctrl+shift+b):",
-					"  ⠿ kruhový graf + %  — využití kontextu (zelená OK, žlutá ≥80 %, červená ≥90 %)",
-					"  $x.xx               — útrata relace",
-					"  T:high / T:med …    — aktuální úroveň thinking (barevně dle úrovně)",
-					"  Q NN %              — horší z kvót poskytovatele (týden / 5h okno)",
-					"  GIT ● / GIT ○       — git: ● změny, ○ čistý pracovní adresář",
-					"  ↑N / ↓N             — git: o N commitů napřed / pozadu",
-					"  MCP ● / ○           — MCP: ● aktivní, ○ neaktivní, červený ● = chyba serveru",
-					"  LSP TS ● / LSP ⠸ TS — LSP: ● aktivní (zkratka serveru), ⠸ se točí, když agent pracuje, ○ neaktivní",
-					"  (při šířce 8 sloupců se zkratka serveru u LSP skryje)",
+					"# /sidebar — herdr pane postranního panelu",
+					"Panel je vykreslován výhradně v samostatném herdr pane (mimo okno Pi).",
 					"",
 					"### Příkazy:",
-					"  /sidebar on|off|toggle     — Zapnout / vypnout / přepnout panel",
-					"  /sidebar collapse|expand   — Explicitně sbalit nebo rozbalit",
-					"  /sidebar mcp on|off        — Zobrazit/skrýt sekci MCP serverů v panelu",
-					"  /sidebar lsp on|off        — Zobrazit/skrýt sekci LSP stavu v panelu",
-					"  /sidebar extensions on|off — Zobrazit/skrýt ostatní rozšíření v panelu",
-					"  /sidebar wider [delta]     — Zvětšit šířku panelu (výchozí: +4)",
-					"  /sidebar narrower [delta]  — Zmenšit šířku panelu (výchozí: -4)",
-					"  /sidebar width <8-60>      — Nastavit přesnou šířku panelu (výchozí: 28, minimal pruh: 10)",
-					"  /sidebar preset <název>    — Přepnout styl (opencode | compact | detailed | minimal)",
-					"  /sidebar refresh           — Vynutit obnovení kvót Kimi a Z.ai",
-					"  /sidebar branding <typ>    — Styl patičky (opencode | pi | custom <text>)",
-					"  /sidebar border <styl>     — Styl oddělovače (line | double | dotted | space | none)",
-					"  /sidebar tab <záložka>     — Přepnout záložku (status | skills | next | prev)",
-					"  /sidebar pane <režim>      — Vykreslení panelu (overlay | herdr)",
-					"  /sidebar reset             — Obnovit výchozí nastavení",
-					"  /sidebar help              — Zobrazit tuto nápovědu",
+					"  /sidebar on|off|toggle   — Otevřít / zavřít / přepnout pane",
+					"  /sidebar width <N>       — Šířka pane ve sloupcích",
+					"  /sidebar wider|narrower  — Šířka pane ±4 sloupce",
+					"  /sidebar tab <záložka>   — status | skills | next | prev",
+					"  /sidebar refresh         — Obnovit kvóty Kimi a Z.ai",
+					"  /sidebar status          — Aktuální stav",
+					"  /sidebar reset           — Výchozí nastavení",
+					"  /sidebar help            — Tato nápověda",
 					"",
 					"### Aktuální stav:",
-					`  • Stav: ${cfg.enabled ? "Rozbaleno" : "Sbaleno («)"}`,
-					`  • Šířka: ${cfg.width} sloupců (min. šířka terminálu: ${cfg.minTerminalWidth} sloupců)`,
-					`  • Styl: ${cfg.preset} | Rozšíření v panelu: ${cfg.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
-					`  • Patička: ${cfg.branding} | Rámeček: ${cfg.borderStyle}`,
+					`  • Panel: ${cfg.enabled ? "otevřený" : "zavřený"}`,
+					`  • Šířka pane: ${cfg.paneWidth} sloupců`,
+					`  • Záložka: ${cfg.tab} | Relace: ${cfg.showSession ? "ZAP" : "VYP"} | Git: ${cfg.showGit ? "ZAP" : "VYP"}`,
 					"",
-					"Tip: Přidejte `--global` pro trvalé uložení do ~/.pi/agent/pi-sidebar.json pro všechny budoucí relace.",
+					"Tip: Přidejte `--global` pro trvalé uložení do ~/.pi/agent/pi-sidebar.json.",
 				].join("\n");
-
 				notify(ctx, helpText, "info");
 				return;
 			}
@@ -403,82 +180,69 @@ export function registerSidebarCommands(
 			const current = getActiveConfig();
 			let nextConfig: SidebarConfig = { ...current };
 
+			const clampWidth = (raw: number): number =>
+				Math.max(MIN_PANE_WIDTH, Math.min(MAX_PANE_WIDTH, raw));
+
 			switch (subcommand) {
 				case "on":
-				case "expand":
 					nextConfig.enabled = true;
-					notify(ctx, 
-						`Postranní panel rozbalen (${nextConfig.width} sloupců)`,
-						"info",
-					);
+					notify(ctx, `Panel otevřen (${nextConfig.paneWidth} sloupců)`, "info");
 					break;
 
 				case "off":
-				case "collapse":
 					nextConfig.enabled = false;
-					notify(ctx, "Postranní panel sbalen («)", "info");
+					notify(ctx, "Panel zavřen", "info");
 					break;
 
 				case "toggle":
 					nextConfig.enabled = !current.enabled;
-					notify(ctx, 
-						`Postranní panel ${nextConfig.enabled ? `rozbalen (${nextConfig.width} sloupců)` : "sbalen («)"}`,
+					notify(
+						ctx,
+						`Panel ${nextConfig.enabled ? "otevřen" : "zavřen"}`,
 						"info",
 					);
 					break;
 
-				case "mcp": {
-					const val = value.toLowerCase();
-					if (val === "on" || val === "true" || val === "show") {
-						nextConfig.showMcp = true;
-						notify(ctx, "Sekce MCP v panelu: ZAPNUTO", "info");
-					} else if (val === "off" || val === "false" || val === "hide") {
-						nextConfig.showMcp = false;
-						notify(ctx, "Sekce MCP v panelu: VYPNUTO", "info");
-					} else {
-						nextConfig.showMcp = !current.showMcp;
-						notify(ctx, 
-							`Sekce MCP v panelu: ${nextConfig.showMcp ? "ZAPNUTO" : "VYPNUTO"}`,
-							"info",
+				case "width": {
+					const num = Number.parseInt(value, 10);
+					if (
+						Number.isNaN(num) ||
+						num < MIN_PANE_WIDTH ||
+						num > MAX_PANE_WIDTH
+					) {
+						notify(
+							ctx,
+							`Šířka musí být číslo v rozmezí ${MIN_PANE_WIDTH} až ${MAX_PANE_WIDTH} sloupců (např. /sidebar width 60).`,
+							"warning",
 						);
+						return;
 					}
+					nextConfig.paneWidth = num;
+					notify(ctx, `Šířka pane: ${num} sloupců`, "info");
 					break;
 				}
 
-				case "lsp": {
-					const val = value.toLowerCase();
-					if (val === "on" || val === "true" || val === "show") {
-						nextConfig.showLsp = true;
-						notify(ctx, "Sekce LSP v panelu: ZAPNUTO", "info");
-					} else if (val === "off" || val === "false" || val === "hide") {
-						nextConfig.showLsp = false;
-						notify(ctx, "Sekce LSP v panelu: VYPNUTO", "info");
-					} else {
-						nextConfig.showLsp = !current.showLsp;
-						notify(ctx, 
-							`Sekce LSP v panelu: ${nextConfig.showLsp ? "ZAPNUTO" : "VYPNUTO"}`,
-							"info",
-						);
-					}
+				case "wider": {
+					const delta = Number.parseInt(value, 10) || 4;
+					const next = clampWidth(current.paneWidth + Math.abs(delta));
+					nextConfig.paneWidth = next;
+					notify(
+						ctx,
+						`Šířka pane: ${next} sloupců (+${next - current.paneWidth})`,
+						"info",
+					);
 					break;
 				}
 
-				case "extensions":
-				case "statusline": {
-					const val = value.toLowerCase();
-					if (val === "on" || val === "true" || val === "show") {
-						nextConfig.showExtensions = true;
-						notify(ctx, "Zobrazení rozšíření v panelu: ZAPNUTO", "info");
-					} else if (val === "off" || val === "false" || val === "hide") {
-						nextConfig.showExtensions = false;
-						notify(ctx, "Zobrazení rozšíření v panelu: VYPNUTO", "info");
-					} else {
-						nextConfig.showExtensions = !current.showExtensions;
-						notify(ctx, 
-							`Zobrazení rozšíření v panelu: ${nextConfig.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
-							"info",
-						);
-					}
+				case "narrower": {
+					const delta = Number.parseInt(value, 10) || 4;
+					const next = clampWidth(current.paneWidth - Math.abs(delta));
+					nextConfig.paneWidth = next;
+					notify(
+						ctx,
+						`Šířka pane: ${next} sloupců (-${current.paneWidth - next})`,
+						"info",
+					);
 					break;
 				}
 
@@ -491,78 +255,18 @@ export function registerSidebarCommands(
 					} else if (!requested) {
 						nextConfig.tab = nextTab(current.tab, 1);
 					} else {
-						notify(ctx,
+						notify(
+							ctx,
 							"Neplatná záložka. Vyberte: status, skills, next nebo prev",
 							"warning",
 						);
 						return;
 					}
-					notify(ctx,
+					notify(
+						ctx,
 						`Záložka panelu: ${nextConfig.tab === "skills" ? "Skills (pi-plugin-dev)" : "Status"}`,
 						"info",
 					);
-					break;
-				}
-
-				case "status": {
-					const msg = [
-						`Postranní panel: ${current.enabled ? "ROZBALENO" : "SBALENO («)"}`,
-						`Záložka: ${current.tab}`,
-						`Šířka: ${current.width} sloupců | Min. šířka terminálu: ${current.minTerminalWidth}`,
-						`Styl: ${current.preset} | Rozšíření: ${current.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
-						`Režim: ${current.paneMode}${current.paneMode === "herdr" ? ` (${current.paneWidth} sloupců)` : ""}`,
-						`Patička: ${current.branding} | Rámeček: ${current.borderStyle}`,
-					].join(" | ");
-					notify(ctx, msg, "info");
-					return;
-				}
-
-				case "wider": {
-					const delta = Number.parseInt(value, 10) || 4;
-					const newW = Math.min(60, current.width + Math.abs(delta));
-					nextConfig.width = newW;
-					nextConfig.enabled = true;
-					notify(ctx, 
-						`Šířka panelu: ${newW} sloupců (+${newW - current.width})`,
-						"info",
-					);
-					break;
-				}
-
-				case "narrower": {
-					const delta = Number.parseInt(value, 10) || 4;
-					const newW = Math.max(16, current.width - Math.abs(delta));
-					nextConfig.width = newW;
-					nextConfig.enabled = true;
-					notify(ctx, 
-						`Šířka panelu: ${newW} sloupců (-${current.width - newW})`,
-						"info",
-					);
-					break;
-				}
-
-				case "resize": {
-					if (value.startsWith("+") || value.startsWith("-")) {
-						const delta = Number.parseInt(value, 10);
-						if (!Number.isNaN(delta)) {
-							const newW = Math.max(8, Math.min(60, current.width + delta));
-							nextConfig.width = newW;
-							nextConfig.enabled = true;
-							notify(ctx, `Šířka panelu: ${newW} sloupců`, "info");
-							break;
-						}
-					}
-					const num = Number.parseInt(value, 10);
-					if (Number.isNaN(num) || num < 8 || num > 60) {
-						notify(ctx, 
-							"Šířka musí být v rozmezí 8 až 60 sloupců (např. /sidebar resize +4 nebo /sidebar resize 32).",
-							"warning",
-						);
-						return;
-					}
-					nextConfig.width = num;
-					nextConfig.enabled = true;
-					notify(ctx, `Šířka panelu: ${num} sloupců`, "info");
 					break;
 				}
 
@@ -573,102 +277,26 @@ export function registerSidebarCommands(
 					return;
 				}
 
-				case "width": {
-					const num = Number.parseInt(value, 10);
-					if (Number.isNaN(num) || num < 8 || num > 60) {
-						notify(ctx, 
-							"Šířka musí být číslo v rozmezí 8 až 60 sloupců (např. /sidebar width 28).",
-							"warning",
-						);
-						return;
-					}
-					nextConfig.width = num;
-					nextConfig.enabled = true;
-					notify(ctx, `Šířka panelu nastavena na ${num} sloupců`, "info");
-					break;
-				}
-
-				case "preset": {
-					const p = value.toLowerCase() as SidebarPreset;
-					if (!["opencode", "compact", "detailed", "minimal"].includes(p)) {
-						notify(ctx, 
-							"Neplatný styl. Vyberte: opencode, compact, detailed nebo minimal",
-							"warning",
-						);
-						return;
-					}
-					nextConfig.preset = p;
-					// Minimal gauge strip needs a narrow width; other presets need room.
-					if (p === "minimal" && nextConfig.width > 12) {
-						nextConfig.width = 10;
-					} else if (p !== "minimal" && nextConfig.width < 16) {
-						nextConfig.width = 28;
-					}
-					notify(ctx, 
-						`Styl postranního panelu nastaven na "${p}" (šířka ${nextConfig.width} sloupců)`,
-						"info",
-					);
-					break;
-				}
-
-				case "branding": {
-					const parts = value.split(/\s+/);
-					const brandType = (parts[0] ?? "").toLowerCase() as SidebarBranding;
-					if (!["opencode", "pi", "custom"].includes(brandType)) {
-						notify(ctx, 
-							"Neplatný typ patičky. Vyberte: opencode, pi nebo custom <text>",
-							"warning",
-						);
-						return;
-					}
-					nextConfig.branding = brandType;
-					if (brandType === "custom" && parts.length > 1) {
-						nextConfig.customBrandingText = parts.slice(1).join(" ");
-					}
-					notify(ctx, `Patička panelu nastavena na "${brandType}"`, "info");
-					break;
-				}
-
-				case "border": {
-					const b = value.toLowerCase() as SidebarBorderStyle;
-					if (!["line", "double", "dotted", "space", "none"].includes(b)) {
-						notify(ctx, 
-							"Neplatný styl oddělovače. Vyberte: line, double, dotted, space, none",
-							"warning",
-						);
-						return;
-					}
-					nextConfig.borderStyle = b;
-					notify(ctx, `Styl oddělovače nastaven na "${b}"`, "info");
-					break;
+				case "status": {
+					const msg = [
+						`Panel: ${current.enabled ? "OTEVŘEN" : "ZAVŘEN"}`,
+						`Šířka: ${current.paneWidth} sloupců`,
+						`Záložka: ${current.tab}`,
+						`Relace: ${current.showSession ? "ZAP" : "VYP"} | Git: ${current.showGit ? "ZAP" : "VYP"}`,
+						`Keep-alive: ${current.paneKeepAlive ? "ZAP" : "VYP"}`,
+					].join(" | ");
+					notify(ctx, msg, "info");
+					return;
 				}
 
 				case "reset":
 					nextConfig = { ...DEFAULT_CONFIG };
-					notify(ctx, 
-						"Nastavení postranního panelu bylo obnoveno na výchozí hodnoty",
-						"info",
-					);
+					notify(ctx, "Nastavení panelu obnoveno na výchozí hodnoty", "info");
 					break;
-
-				case "pane": {
-					const val = value.toLowerCase();
-					if (val === "overlay" || val === "herdr") {
-						nextConfig.paneMode = val;
-					} else {
-						nextConfig.paneMode =
-							current.paneMode === "herdr" ? "overlay" : "herdr";
-					}
-					notify(
-						ctx,
-						`Režim panelu: ${nextConfig.paneMode === "herdr" ? "samostatný herdr pane" : "překryv v TUI"}`,
-						"info",
-					);
-					break;
-				}
 
 				default:
-					notify(ctx, 
+					notify(
+						ctx,
 						`Neznámý příkaz "${subcommand}". Použijte: /sidebar help`,
 						"warning",
 					);
@@ -681,10 +309,10 @@ export function registerSidebarCommands(
 				saveGlobalConfig(nextConfig);
 			}
 
-			// Persist in current session log
+			// Persist in the current session log (TUI/session state, never LLM context).
 			pi.appendEntry(CONFIG_ENTRY_TYPE, nextConfig);
 
-			// Trigger refresh in caller
+			// Trigger refresh in the caller.
 			onConfigChanged(nextConfig, ctx);
 		},
 	});

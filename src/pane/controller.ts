@@ -5,7 +5,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { getGitInfo } from "../git.js";
 import type { SkillBridge } from "../skills-tab.js";
-import { getSessionStats } from "../stats.js";
+import { getSessionStats, isAutoCompactEnabled } from "../stats.js";
 import type { TabHitRange } from "../tabs.js";
 import type { SidebarConfig, SidebarTab } from "../types.js";
 import { mapClickToTab } from "./click.js";
@@ -261,8 +261,20 @@ export class PaneController {
 			sessionTitle: sessionName,
 			modelId: ctx.model?.id ?? null,
 			modelProvider: ctx.model?.provider ?? null,
+			modelReasoning: Boolean(ctx.model?.reasoning),
 			thinkingLevel: this.pi.getThinkingLevel() ?? null,
 			contextPercent: usage?.percent ?? stats.contextPercent,
+			contextWindow: usage?.contextWindow ?? ctx.model?.contextWindow ?? 0,
+			autoCompactEnabled: isAutoCompactEnabled(ctx.cwd),
+			cost: stats.totalCost,
+			inputTokens: stats.totalInputTokens,
+			outputTokens: stats.totalOutputTokens,
+			cacheRead: stats.totalCacheRead,
+			cacheWrite: stats.totalCacheWrite,
+			cacheHitRate: stats.cacheHitRate,
+			usingSubscription: ctx.model?.provider === "kimi-coding",
+			showSession: config.showSession,
+			showGit: config.showGit,
 			git: getGitInfo(ctx.cwd),
 			cwd: ctx.cwd,
 			color,

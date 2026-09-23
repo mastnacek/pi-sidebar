@@ -1,11 +1,10 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { formatProjectPath } from "../git.js";
-import { contextBar } from "../quota.js";
 import {
 	type SkillBridge,
 	type SkillsPanelStyle,
 	renderSkillsPanel,
 } from "../skills-tab.js";
+import { renderStatusLine } from "../statusline.js";
 import { type TabHitRange, renderTabBar } from "../tabs.js";
 import type { GitInfo, SidebarTab, SkillStateSnapshot } from "../types.js";
 
@@ -28,8 +27,20 @@ export interface PaneViewInput {
 	sessionTitle?: string | null;
 	modelId?: string | null;
 	modelProvider?: string | null;
+	modelReasoning?: boolean;
 	thinkingLevel?: string | null;
 	contextPercent: number | null;
+	contextWindow?: number | null;
+	autoCompactEnabled?: boolean;
+	cost?: number;
+	inputTokens?: number;
+	outputTokens?: number;
+	cacheRead?: number;
+	cacheWrite?: number;
+	cacheHitRate?: number;
+	usingSubscription?: boolean;
+	showSession?: boolean;
+	showGit?: boolean;
 	git: GitInfo;
 	cwd: string;
 	color: PaneColor;
@@ -91,9 +102,9 @@ export interface PaneFrame {
 }
 
 /**
- * Build the pane face: tab strip, then skill HUD (or session line), then Model,
- * Context, Git and Shortcuts. Everything else (quota, tokens/cache, MCP, LSP,
- * extensions, branding) is intentionally absent — see the Skills-tab decision.
+ * Build the pane face: tab strip, then the skill HUD (skills face only), then
+ * the statusline-parity telemetry block. There is no overlay anymore, so no
+ * shortcut hints are drawn — the pane never receives those key chords.
  */
 export function buildPaneFrame(input: PaneViewInput): PaneFrame {
 	const width = Math.max(8, Math.floor(input.width));
@@ -108,17 +119,11 @@ export function buildPaneFrame(input: PaneViewInput): PaneFrame {
 	const warning = (s: string) => color("warning", s);
 	const error = (s: string) => color("error", s);
 
-	const header = (title: string, icon?: string): string => {
-		const label = icon ? `${icon} ${title}` : title;
-		const lineLen = Math.max(1, innerWidth - visibleWidth(label) - 4);
-		return `${accent(`── ${label} `)}${dim("─".repeat(lineLen))}`;
-	};
-
 	const content: string[] = [];
 
-	// 0. Tab strip — mirrors the overlay's Status | Skills bar. Switching is driven
-	// by `/sidebar tab` and ctrl+shift+t; the hit ranges travel in the snapshot so
-	// an interactive renderer can map clicks without re-deriving layout.
+	// 0. Tab strip — Status | Skills bar. Switching is driven by `/sidebar tab`,
+	// ctrl+shift+t, or a click; the hit ranges travel in the snapshot so an
+	// interactive renderer can map clicks without re-deriving layout.
 	const activeTab: SidebarTab =
 		input.activeTab ?? (input.face === "status" ? "status" : "skills");
 	const tabBar = renderTabBar(activeTab, innerWidth, {
@@ -132,18 +137,9 @@ export function buildPaneFrame(input: PaneViewInput): PaneFrame {
 	content.push(dim("─".repeat(Math.max(1, innerWidth))));
 	content.push("");
 
-	// 1. Skill usage HUD (pi-plugin-dev tracker snapshot off the event bus), or a
-	// plain session line when mirroring the status face.
-	if (input.face === "status") {
-		content.push(
-			muted(
-				truncateToWidth(
-					input.sessionTitle ? `🏷️ ${input.sessionTitle}` : "Session",
-					innerWidth,
-				),
-			),
-		);
-	} else {
+	// 1. Skill usage HUD (pi-plugin-dev tracker snapshot off the event bus) —
+	// skills face only; the status face starts at the statusline block.
+	if (input.face !== "status") {
 		content.push(
 			...renderSkillsPanel(
 				input.bridge,
@@ -153,70 +149,41 @@ export function buildPaneFrame(input: PaneViewInput): PaneFrame {
 				now,
 			),
 		);
+		content.push("");
 	}
-	content.push("");
 
-	// 2. Selected model + thinking level.
-	content.push(header("MODEL", "🤖"));
-	if (input.modelId) {
-		content.push(accent(truncateToWidth(input.modelId, innerWidth)));
-		if (input.modelProvider) {
-			content.push(dim(truncateToWidth(`(${input.modelProvider})`, innerWidth)));
-		}
-		content.push(
-			muted(
-				truncateToWidth(
-					`thinking: ${input.thinkingLevel ?? "off"}`,
-					innerWidth,
-				),
-			),
-		);
-	} else {
-		content.push(dim("(no model)"));
-	}
-	content.push("");
-
-	// 3. Context bar — percent only, no token/cost telemetry.
-	content.push(header("CONTEXT", "📊"));
-	const barW = Math.max(6, Math.min(10, innerWidth - 8));
-	const pct =
-		input.contextPercent === null
-			? "?%"
-			: `${input.contextPercent.toFixed(0)}%`;
-	const barColor =
-		input.contextPercent !== null && input.contextPercent >= 90
-			? error
-			: input.contextPercent !== null && input.contextPercent >= 80
-				? warning
-				: accent;
+	// 2. Statusline-parity telemetry (cwd, git, session, context, cost, token
+	//    totals, cache, provider + model + thinking emoji).
 	content.push(
-		`${barColor(contextBar(input.contextPercent, barW))} ${barColor(pct)}`,
+		...renderStatusLine({
+			cwd: input.cwd,
+			git: input.git,
+			color,
+			innerWidth,
+			sessionName: input.sessionTitle ?? null,
+			modelId: input.modelId ?? null,
+			modelProvider: input.modelProvider ?? null,
+			modelReasoning: input.modelReasoning,
+			thinkingLevel: input.thinkingLevel ?? null,
+			contextPercent: input.contextPercent,
+			contextWindow: input.contextWindow ?? 0,
+			autoCompactEnabled: input.autoCompactEnabled,
+			cost: input.cost,
+			inputTokens: input.inputTokens,
+			outputTokens: input.outputTokens,
+			cacheRead: input.cacheRead,
+			cacheWrite: input.cacheWrite,
+			cacheHitRate: input.cacheHitRate,
+			usingSubscription: input.usingSubscription,
+			showSession: input.showSession !== false,
+			showGit: input.showGit !== false,
+		}),
 	);
-	content.push("");
-
-	// 4. Git / workspace.
-	content.push(header("GIT", "🌿"));
-	const path = formatProjectPath(input.cwd, input.git.branch);
-	for (const line of wrapText(`📁 ${path}`, innerWidth)) {
-		content.push(color("customMessageLabel", line));
-	}
-	if (input.git.branch) {
-		const dirtyIcon = input.git.dirty ? "● změny" : "○ čisté";
-		const dirtyColor = input.git.dirty ? warning : success;
-		let meta = `🌿 ${input.git.branch} ${dirtyColor(dirtyIcon)}`;
-		if (input.git.ahead > 0) meta += dim(` ▸${input.git.ahead}`);
-		if (input.git.behind > 0) meta += dim(` ◂${input.git.behind}`);
-		content.push(meta);
-	}
-	content.push("");
-
-	// 5. Shortcuts.
-	content.push(header("ZKRATKY", "⌨️"));
-	content.push(dim("⌨️ ctrl+shift+b    « minimal pruh / zpět"));
-	content.push(dim("⌨️ ctrl+shift+←/→  šířka (±4)"));
 
 	const lines = content.map((line) => {
-		const trimmed = truncateToWidth(line, innerWidth);
+		// Empty ellipsis: content is already wrapped to `innerWidth`, so this only
+		// guards against a stray overflow without painting `...` over the text.
+		const trimmed = truncateToWidth(line, innerWidth, "");
 		const padLen = Math.max(0, innerWidth - visibleWidth(trimmed));
 		return BORDER + trimmed + " ".repeat(padLen);
 	});

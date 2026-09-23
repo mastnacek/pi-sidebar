@@ -138,8 +138,10 @@ function actionIcon(type: string): string {
 }
 
 /**
- * Render the Skills tab for a narrow column. One terminal line per entry; the
- * caller owns viewport padding and bottom sections.
+ * Render the Skills tab for a narrow column. Content adapts to `innerWidth`:
+ * long references, focus lines and gate labels wrap instead of clipping, and
+ * summaries/details are appended only once the column is wide enough to read
+ * them (`wide`). The caller owns viewport padding and bottom sections.
  */
 export function renderSkillsPanel(
 	bridge: SkillBridge,
@@ -168,16 +170,19 @@ export function renderSkillsPanel(
 		return lines;
 	}
 
+	/** Extra detail only when the column can hold it — keeps narrow panels terse. */
+	const wide = max >= 46;
+
 	// Header: active skill + counters
-	lines.push(style.accent(truncateToWidth(`🎯 ${state.activeSkill ?? "no skill"}`, max)));
-	lines.push(
-		style.dim(
-			truncateToWidth(
-				`${state.references.length} refs · ${elapsedLabel(now - state.startTime)} · ${state.turnCount} turns`,
-				max,
-			),
-		),
-	);
+	for (const line of wrapText(`🎯 ${state.activeSkill ?? "no skill"}`, max)) {
+		lines.push(style.accent(line));
+	}
+	for (const line of wrapText(
+		`${state.references.length} refs · ${elapsedLabel(now - state.startTime)} · ${state.turnCount} turns`,
+		max,
+	)) {
+		lines.push(style.dim(line));
+	}
 	lines.push("");
 
 	// Loaded guidance
@@ -187,7 +192,11 @@ export function renderSkillsPanel(
 	} else {
 		const shown = state.references.slice(-MAX_REFERENCES);
 		for (const ref of shown) {
-			lines.push(style.success(truncateToWidth(`  ✓ ${ref.name}`, max)));
+			const text =
+				wide && ref.summary
+					? `  ✓ ${ref.name} — ${ref.summary}`
+					: `  ✓ ${ref.name}`;
+			for (const line of wrapText(text, max)) lines.push(style.success(line));
 		}
 	}
 	lines.push("");
@@ -198,11 +207,11 @@ export function renderSkillsPanel(
 		lines.push(style.dim("  (idle)"));
 	} else {
 		for (const action of state.actions.slice(-MAX_ACTIONS)) {
-			lines.push(
-				style.dim(
-					truncateToWidth(`  ${actionIcon(action.type)} ${action.target}`, max),
-				),
-			);
+			const text =
+				wide && action.summary
+					? `  ${actionIcon(action.type)} ${action.target} — ${action.summary}`
+					: `  ${actionIcon(action.type)} ${action.target}`;
+			for (const line of wrapText(text, max)) lines.push(style.dim(line));
 		}
 	}
 	lines.push("");
@@ -223,6 +232,7 @@ export function renderSkillsPanel(
 	if (state.compliance.length === 0) {
 		lines.push(style.dim("  awaiting code mutations"));
 	} else {
+		const gateWidth = Math.max(1, max - 8);
 		for (const check of state.compliance.slice(-MAX_COMPLIANCE)) {
 			const token = BADGE[check.status] ?? "warning";
 			const label = `[${token === "success" ? "PASS" : token === "error" ? "FAIL" : "WARN"}]`;
@@ -232,24 +242,25 @@ export function renderSkillsPanel(
 					: token === "error"
 						? style.error(label)
 						: style.warning(label);
-			lines.push(
-				`${badge} ${style.dim(truncateToWidth(check.label, Math.max(1, max - 8)))}`,
-			);
+			const text =
+				wide && check.details ? `${check.label} — ${check.details}` : check.label;
+			const wrapped = wrapText(text, gateWidth);
+			wrapped.forEach((line, index) => {
+				lines.push(index === 0 ? `${badge} ${style.dim(line)}` : `        ${style.dim(line)}`);
+			});
 		}
 	}
 	lines.push("");
 
 	// Status footer
-	lines.push(
-		state.inTurn
-			? style.accent("● running")
-			: style.success(
-					truncateToWidth(
-						`✓ settled · ${state.inspectedCount} read · ${state.modifiedCount} written`,
-						max,
-					),
-				),
-	);
+	const footer = state.inTurn
+		? "● running"
+		: `✓ settled · ${state.inspectedCount} read · ${state.modifiedCount} written`;
+	for (const line of wrapText(footer, max)) {
+		lines.push(state.inTurn ? style.accent(line) : style.success(line));
+	}
 
-	return lines.map((line) => truncateToWidth(line, max));
+	// Empty ellipsis: every line is already wrapped to `max`, so this only guards
+	// against an odd overflow without overwriting text with `...`.
+	return lines.map((line) => truncateToWidth(line, max, ""));
 }

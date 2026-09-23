@@ -1,7 +1,7 @@
 {
   "name": "pi-sidebar",
   "version": "0.1.0",
-  "description": "OpenCode-style right sidebar overlay for Pi coding agent with session info, context tokens, cost, LSP status, and project details.",
+  "description": "Herdr-pane telemetry panel for the Pi coding agent: statusline-parity context, cost, tokens, model and git, plus a pi-plugin-dev skill HUD.",
   "type": "module",
   "main": "index.ts",
   "types": "index.ts",
@@ -17,9 +17,10 @@
     "pi-coding-agent",
     "pi-extension",
     "sidebar",
-    "opencode",
-    "tui",
-    "overlay"
+    "herdr",
+    "pane",
+    "statusline",
+    "telemetry"
   ],
   "files": [
     "src",
@@ -40,12 +41,14 @@
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-agent-core": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-agent-core": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
     "@types/node": "^22.13.0",

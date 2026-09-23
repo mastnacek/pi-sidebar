@@ -1,45 +1,23 @@
-export type SidebarPreset = "opencode" | "compact" | "detailed" | "minimal";
-export type SidebarBranding = "opencode" | "pi" | "custom";
-/**
- * Where the panel is drawn: inside pi's own TUI as an overlay, or in a separate
- * herdr pane fed by a snapshot file.
- */
-export type SidebarPaneMode = "overlay" | "herdr";
 /** Switchable panel faces. `status` = telemetry, `skills` = pi-plugin-dev skill HUD. */
 export type SidebarTab = "status" | "skills";
-export type SidebarBorderStyle =
-	| "line"
-	| "double"
-	| "dotted"
-	| "space"
-	| "none";
 
+/**
+ * Plugin configuration. pi-sidebar renders exclusively in a dedicated herdr pane
+ * (see `pane/herdr.ts`); there is no in-agent overlay, so the config carries only
+ * pane and content options.
+ */
 export interface SidebarConfig {
+	/** Open/close the herdr pane. */
 	enabled: boolean;
-	width: number;
-	minTerminalWidth: number;
-	preset: SidebarPreset;
-	branding: SidebarBranding;
-	customBrandingText?: string;
-	borderStyle: SidebarBorderStyle;
-	/** Active panel tab. */
+	/** Active pane face. */
 	tab: SidebarTab;
-	/** Show the clickable tab bar at the top of the panel. */
-	showTabBar: boolean;
-	/** Render inside pi's TUI (overlay) or in a dedicated herdr pane. */
-	paneMode: SidebarPaneMode;
-	/** Width in columns of the herdr pane (ignored in overlay mode). */
+	/** Width in columns requested for the herdr pane. */
 	paneWidth: number;
-	/** Keep the herdr pane open (with a final frame) after the session ends. */
+	/** Keep the pane open (with a final frame) after the session ends. */
 	paneKeepAlive: boolean;
+	/** Show the `🏷️ session` segment. */
 	showSession: boolean;
-	showModel: boolean;
-	showContext: boolean;
-	showCache: boolean;
-	showQuota: boolean;
-	showMcp: boolean;
-	showLsp: boolean;
-	showExtensions: boolean;
+	/** Show the `🌿 branch ●dirty/○clean` segment. */
 	showGit: boolean;
 }
 
@@ -91,13 +69,6 @@ export interface ZaiLimit {
 export interface ZaiQuota {
 	limits?: ZaiLimit[];
 	level?: string;
-}
-
-export interface FooterDataProviderLike {
-	getGitBranch(): string | null;
-	getExtensionStatuses(): ReadonlyMap<string, string>;
-	getAvailableProviderCount(): number;
-	onBranchChange(callback: () => void): () => void;
 }
 
 /**
