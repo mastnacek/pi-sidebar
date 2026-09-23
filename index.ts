@@ -233,13 +233,16 @@ export default function (pi: ExtensionAPI): void {
 	);
 
 	// 3. Cleanup on shutdown: drain timers, stop the pane, release every listener.
+	// `close=false` keeps the herdr pane alive across /reload: the fresh extension
+	// instance adopts the same pane in session_start and resumes pushing snapshots,
+	// so the sidebar (Rust renderer included) survives and refreshes in place.
 	pi.on("session_shutdown", () => {
 		if (busyInterval) {
 			clearInterval(busyInterval);
 			busyInterval = null;
 		}
 		busy = false;
-		paneController?.stop(getActiveConfig());
+		paneController?.stop(getActiveConfig(), false);
 		paneController = null;
 		skillBridge.detach();
 		while (unsubscribers.length > 0) {

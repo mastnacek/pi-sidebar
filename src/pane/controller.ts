@@ -185,8 +185,15 @@ export class PaneController {
 		if (typeof this.pendingTimer.unref === "function") this.pendingTimer.unref();
 	}
 
-	/** Close the pane (or leave a final frame when the pane is kept alive). */
-	stop(config: SidebarConfig): void {
+	/**
+	 * Stop the controller. `close` controls pane disposal:
+	 * - close=true (default, /sidebar off, session end without keep-alive): close pane.
+	 * - close=false (extension reload): keep the pane and its renderer alive so the
+	 *   next session instance can adopt it and continue pushing snapshots. Nothing
+	 *   is written — a live renderer just keeps polling until the new instance
+	 *   refreshes the file.
+	 */
+	stop(config: SidebarConfig, close = true): void {
 		if (this.pendingTimer) {
 			clearTimeout(this.pendingTimer);
 			this.pendingTimer = null;
@@ -199,7 +206,9 @@ export class PaneController {
 		const bin = herdrBinary();
 		const paneId = this.paneId;
 		if (bin && paneId) {
-			if (config.paneKeepAlive) {
+			if (!close) {
+				// Reload: leave the pane and renderer untouched.
+			} else if (config.paneKeepAlive) {
 				this.writeDead("session ended");
 			} else {
 				closePane(bin, paneId);
