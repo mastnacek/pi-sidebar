@@ -12,6 +12,7 @@ import {
 	setActiveConfig,
 } from "./config.js";
 import { refreshKimiQuota, refreshZaiQuota } from "./quota.js";
+import { nextTab } from "./tabs.js";
 import type {
 	SidebarBorderStyle,
 	SidebarBranding,
@@ -37,6 +38,7 @@ const COMMAND_DOCS: Record<string, string> = {
 	branding: "přepnout text patičky (opencode | pi | custom)",
 	border:
 		"nastavit styl oddělovacího rámečku (line | double | dotted | space | none)",
+	tab: "přepnout záložku panelu (status | skills | next | prev)",
 	status: "zobrazit aktuální konfiguraci a stav panelu",
 	reset: "obnovit výchozí nastavení panelu",
 	help: "zobrazit přehled příkazů a nápovědu",
@@ -156,6 +158,35 @@ export function registerSidebarCommands(
 					return filtered.length > 0 ? filtered : null;
 				}
 
+				if (cmd === "tab") {
+					const tabs = [
+						{
+							value: "tab status",
+							label: "tab status",
+							description: "Telemetrie: kontext, model, kvóty, git, MCP, LSP",
+						},
+						{
+							value: "tab skills",
+							label: "tab skills",
+							description: "Skill HUD z pi-plugin-dev (reference, focus, compliance)",
+						},
+						{
+							value: "tab next",
+							label: "tab next",
+							description: "Přepnout na další záložku (ctrl+shift+t)",
+						},
+						{
+							value: "tab prev",
+							label: "tab prev",
+							description: "Přepnout na předchozí záložku",
+						},
+					];
+					const filtered = tabs.filter((i) =>
+						i.value.toLowerCase().startsWith(normalizedPrefix),
+					);
+					return filtered.length > 0 ? filtered : null;
+				}
+
 				if (cmd === "preset") {
 					const presets = [
 						{
@@ -258,6 +289,7 @@ export function registerSidebarCommands(
 				"preset",
 				"branding",
 				"border",
+				"tab",
 			]);
 			const items: AutocompleteItem[] = [];
 			for (const [key, description] of Object.entries(COMMAND_DOCS)) {
@@ -298,6 +330,8 @@ export function registerSidebarCommands(
 					"### Klávesové zkratky a ovládání:",
 					"  ctrl+shift+b               — Přepnout minimal pruh / předchozí styl",
 					"  ctrl+shift+→/←             — Zvětšit / zmenšit šířku panelu (±4 sloupce)",
+					"  ctrl+shift+t               — Přepnout záložku panelu (Status ↔ Skills)",
+					"  ctrl+shift+1 / ctrl+shift+2 — Přímé přepnutí na záložku Status / Skills",
 					"",
 					"### Trvalá nápověda zkratek:",
 					"  Zkratkový tahák je trvale zobrazen ve spodní části postranního panelu.",
@@ -326,6 +360,7 @@ export function registerSidebarCommands(
 					"  /sidebar refresh           — Vynutit obnovení kvót Kimi a Z.ai",
 					"  /sidebar branding <typ>    — Styl patičky (opencode | pi | custom <text>)",
 					"  /sidebar border <styl>     — Styl oddělovače (line | double | dotted | space | none)",
+					"  /sidebar tab <záložka>     — Přepnout záložku (status | skills | next | prev)",
 					"  /sidebar reset             — Obnovit výchozí nastavení",
 					"  /sidebar help              — Zobrazit tuto nápovědu",
 					"",
@@ -424,9 +459,32 @@ export function registerSidebarCommands(
 					break;
 				}
 
+				case "tab": {
+					const requested = value.toLowerCase();
+					if (requested === "next" || requested === "prev") {
+						nextConfig.tab = nextTab(current.tab, requested === "next" ? 1 : -1);
+					} else if (requested === "status" || requested === "skills") {
+						nextConfig.tab = requested;
+					} else if (!requested) {
+						nextConfig.tab = nextTab(current.tab, 1);
+					} else {
+						notify(ctx,
+							"Neplatná záložka. Vyberte: status, skills, next nebo prev",
+							"warning",
+						);
+						return;
+					}
+					notify(ctx,
+						`Záložka panelu: ${nextConfig.tab === "skills" ? "Skills (pi-plugin-dev)" : "Status"}`,
+						"info",
+					);
+					break;
+				}
+
 				case "status": {
 					const msg = [
 						`Postranní panel: ${current.enabled ? "ROZBALENO" : "SBALENO («)"}`,
+						`Záložka: ${current.tab}`,
 						`Šířka: ${current.width} sloupců | Min. šířka terminálu: ${current.minTerminalWidth}`,
 						`Styl: ${current.preset} | Rozšíření: ${current.showExtensions ? "ZAPNUTO" : "VYPNUTO"}`,
 						`Patička: ${current.branding} | Rámeček: ${current.borderStyle}`,

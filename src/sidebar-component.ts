@@ -11,9 +11,11 @@ import {
 } from "@earendil-works/pi-tui";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { getActiveConfig } from "./config.js";
+import { CONFIG_ENTRY_TYPE, getActiveConfig, setActiveConfig } from "./config.js";
 import { formatProjectPath, getGitInfo } from "./git.js";
 import { ringGauge } from "./gauge.js";
+import { SkillBridge, renderSkillsPanel } from "./skills-tab.js";
+import { type TabHitRange, renderTabBar } from "./tabs.js";
 import {
 	contextBar,
 	formatResetTime,
@@ -30,7 +32,7 @@ import {
 	getSessionStats,
 	isAutoCompactEnabled,
 } from "./stats.js";
-import type { FooterDataProviderLike } from "./types.js";
+import type { FooterDataProviderLike, SidebarTab } from "./types.js";
 
 const BORDER_CHARS = {
 	line: "│ ",
@@ -39,6 +41,28 @@ const BORDER_CHARS = {
 	space: "  ",
 	none: "",
 };
+
+/**
+ * Structural subset of pi-tui's `TuiMouseEvent`.
+ *
+ * Declared locally rather than imported: `peerDependencies` is `"*"`, and the
+ * mouse API only exists from pi-tui 0.86 onwards (the local dev install is
+ * 0.84.4). Structural typing keeps this file compiling on both, while the
+ * engine (0.87.x) still calls `handleMouse` with the full event object.
+ */
+export interface PanelMouseEvent {
+	type: string;
+	button: string;
+	/** Position local to this component. */
+	x: number;
+	y: number;
+}
+
+/** Structural subset of pi-tui's `TuiMouseEventResult`. */
+export interface PanelMouseResult {
+	handled?: boolean;
+	render?: boolean;
+}
 
 function stripAnsi(str: string): string {
 	return str
@@ -141,15 +165,28 @@ export class SidebarComponent implements Component {
 	private theme: Theme;
 	private sessionStartIso: string;
 	private footerData: FooterDataProviderLike | null = null;
+	/** Read-only view of pi-plugin-dev's tracker (Skills tab). */
+	private skillBridge: SkillBridge;
+	/** Clickable column ranges of the tab bar, from the last render. */
+	private tabHitRanges: TabHitRange[] = [];
+	/** Row index of the tab bar within the last rendered line array. */
+	private tabBarRow = 0;
 	/** True while the agent turn is processing — drives the LSP spinner. */
 	private busy = false;
 
-	constructor(tui: TUI, pi: ExtensionAPI, ctx: ExtensionContext, theme: Theme) {
+	constructor(
+		tui: TUI,
+		pi: ExtensionAPI,
+		ctx: ExtensionContext,
+		theme: Theme,
+		skillBridge: SkillBridge = new SkillBridge(),
+	) {
 		this.tui = tui;
 		this.pi = pi;
 		this.ctx = ctx;
 		this.theme = theme;
 		this.sessionStartIso = new Date().toISOString();
+		this.skillBridge = skillBridge;
 	}
 
 	updateContext(ctx: ExtensionContext): void {
@@ -166,6 +203,47 @@ export class SidebarComponent implements Component {
 
 	updateBusy(busy: boolean): void {
 		this.busy = busy;
+	}
+
+	/** Switch the active tab, persist it into the session, and repaint. */
+	setTab(tab: SidebarTab): void {
+		const next = { ...getActiveConfig(), tab };
+		setActiveConfig(next);
+		try {
+			this.pi.appendEntry(CONFIG_ENTRY_TYPE, next);
+		} catch {
+			// Non-fatal: persistence is best-effort.
+		}
+		this.tui.requestRender();
+	}
+
+	/**
+	 * Handle mouse clicks on the tab bar.
+	 *
+	 * Reachable only in fullscreen mode (`tuiMode: "fullscreen"`): the regular-mode
+	 * TUI never enables mouse reporting, so no click can arrive there. The overlay
+	 * is `nonCapturing`, but mouse dispatch is coordinate-based (not focus-based),
+	 * so clicks still land on this component.
+	 */
+	handleMouse(event: PanelMouseEvent): PanelMouseResult | undefined {
+		const config = getActiveConfig();
+		if (!config.enabled || !config.showTabBar) return undefined;
+		if (event.type !== "click" || event.button !== "left") return undefined;
+		if (event.y !== this.tabBarRow) return undefined;
+
+		// `event.x` is local to this component; skip the border prefix.
+		const borderPrefix = BORDER_CHARS[config.borderStyle] ?? BORDER_CHARS.line;
+		const innerX = event.x - visibleWidth(borderPrefix);
+		if (innerX < 0) return undefined;
+
+		const hit = this.tabHitRanges.find(
+			(range) => innerX >= range.start && innerX < range.end,
+		);
+		// Swallow clicks on the tab-bar row that miss a label, so they cannot fall
+		// through to transcript selection behind the panel.
+		if (!hit) return { handled: true };
+		if (hit.id !== config.tab) this.setTab(hit.id);
+		return { handled: true, render: true };
 	}
 
 	invalidate(): void {
@@ -265,9 +343,43 @@ export class SidebarComponent implements Component {
 					: success;
 
 		// =========================================================================
+		// TAB BAR (click in fullscreen, or switch via keyboard / /sidebar tab)
+		// =========================================================================
+		if (config.showTabBar) {
+			const bar = renderTabBar(config.tab, innerWidth, {
+				accent,
+				muted,
+				dim,
+				// Defensive: partial theme mocks (tests, exotic hosts) may lack bold().
+				bold: (s: string) =>
+					typeof th.bold === "function" ? th.bold(s) : accent(s),
+			});
+			this.tabBarRow = topLines.length;
+			this.tabHitRanges = bar.hits;
+			topLines.push(bar.line);
+			topLines.push(dim("─".repeat(Math.max(1, innerWidth))));
+		} else {
+			this.tabHitRanges = [];
+		}
+
+		// =========================================================================
+		// TAB: SKILLS (pi-plugin-dev snapshot off the shared event bus)
+		// =========================================================================
+		if (config.tab === "skills") {
+			topLines.push(
+				...renderSkillsPanel(
+					this.skillBridge,
+					innerWidth,
+					{ accent, muted, dim, success, warning, error },
+					(text: string, maxWidth: number) => this.wrapText(text, maxWidth),
+				),
+			);
+		}
+
+		// =========================================================================
 		// PRESET: MINIMAL (Narrow gauge strip — ~10 columns, indicators only)
 		// =========================================================================
-		if (config.preset === "minimal") {
+		if (config.tab === "status" && config.preset === "minimal") {
 			// Real usable width (innerWidth has a floor of 8 — never pad beyond
 			// what actually fits, or sliceByColumn will cut the line).
 			const usable = Math.max(0, width - borderColWidth);

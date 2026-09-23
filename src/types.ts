@@ -1,5 +1,7 @@
 export type SidebarPreset = "opencode" | "compact" | "detailed" | "minimal";
 export type SidebarBranding = "opencode" | "pi" | "custom";
+/** Switchable panel faces. `status` = telemetry, `skills` = pi-plugin-dev skill HUD. */
+export type SidebarTab = "status" | "skills";
 export type SidebarBorderStyle =
 	| "line"
 	| "double"
@@ -15,6 +17,10 @@ export interface SidebarConfig {
 	branding: SidebarBranding;
 	customBrandingText?: string;
 	borderStyle: SidebarBorderStyle;
+	/** Active panel tab. */
+	tab: SidebarTab;
+	/** Show the clickable tab bar at the top of the panel. */
+	showTabBar: boolean;
 	showSession: boolean;
 	showModel: boolean;
 	showContext: boolean;
@@ -81,4 +87,35 @@ export interface FooterDataProviderLike {
 	getExtensionStatuses(): ReadonlyMap<string, string>;
 	getAvailableProviderCount(): number;
 	onBranchChange(callback: () => void): () => void;
+}
+
+/**
+ * Snapshot published by pi-plugin-dev on the shared event bus
+ * (`pi.events`, channel `pi-plugin-dev:state`).
+ *
+ * Mirrored here rather than imported so pi-sidebar keeps working when
+ * pi-plugin-dev is not installed, and so the two packages stay decoupled.
+ */
+export interface SkillStateSnapshot {
+	live: boolean;
+	activeSkill?: string;
+	references: Array<{ name: string; summary: string }>;
+	actions: Array<{
+		type: string;
+		target: string;
+		summary: string;
+		timestamp: number;
+	}>;
+	compliance: Array<{
+		rule: string;
+		label: string;
+		status: string;
+		details: string;
+	}>;
+	inspectedCount: number;
+	modifiedCount: number;
+	startTime: number;
+	lastUpdateTime: number;
+	inTurn: boolean;
+	turnCount: number;
 }

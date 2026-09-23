@@ -7,6 +7,7 @@ import type {
 	SidebarBranding,
 	SidebarConfig,
 	SidebarPreset,
+	SidebarTab,
 } from "./types.js";
 
 export const CONFIG_ENTRY_TYPE = "pi-sidebar-config";
@@ -25,6 +26,8 @@ export const DEFAULT_CONFIG: SidebarConfig = {
 	preset: "opencode",
 	branding: "pi",
 	borderStyle: "line",
+	tab: "status",
+	showTabBar: true,
 	showSession: true,
 	showModel: true,
 	showContext: true,
@@ -140,6 +143,19 @@ function resolveBorderStyle(
 	return fallback;
 }
 
+function resolveTab(
+	sessionVal?: string,
+	globalVal?: string,
+	fallback: SidebarTab = "status",
+): SidebarTab {
+	const valid: SidebarTab[] = ["status", "skills"];
+	if (sessionVal && valid.includes(sessionVal as SidebarTab))
+		return sessionVal as SidebarTab;
+	if (globalVal && valid.includes(globalVal as SidebarTab))
+		return globalVal as SidebarTab;
+	return fallback;
+}
+
 export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 	const globalCfg = loadGlobalConfig();
 	let sessionCfg: Partial<SidebarConfig> | null = null;
@@ -195,6 +211,12 @@ export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 			sessionCfg?.borderStyle,
 			globalCfg.borderStyle,
 			DEFAULT_CONFIG.borderStyle,
+		),
+		tab: resolveTab(sessionCfg?.tab, globalCfg.tab, DEFAULT_CONFIG.tab),
+		showTabBar: resolveBoolean(
+			sessionCfg?.showTabBar,
+			globalCfg.showTabBar,
+			DEFAULT_CONFIG.showTabBar,
 		),
 		showSession: resolveBoolean(
 			sessionCfg?.showSession,
