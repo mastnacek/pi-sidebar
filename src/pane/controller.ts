@@ -6,7 +6,9 @@ import type {
 import { getGitInfo } from "../git.js";
 import type { SkillBridge } from "../skills-tab.js";
 import { getSessionStats } from "../stats.js";
-import type { SidebarConfig } from "../types.js";
+import type { TabHitRange } from "../tabs.js";
+import type { SidebarConfig, SidebarTab } from "../types.js";
+import { mapClickToTab } from "./click.js";
 import { buildPaneFrame, type PaneColor } from "./lines.js";
 import {
 	PANE_LABEL,
@@ -24,6 +26,8 @@ import {
 import {
 	PANE_SNAPSHOT_VERSION,
 	type PaneSnapshot,
+	consumeClickRequest,
+	resolveRequestPath,
 	resolveSnapshotPath,
 	writePaneSnapshot,
 } from "./snapshot.js";
@@ -38,6 +42,9 @@ const MIN_WRITE_INTERVAL_MS = 250;
 
 /** Renderer polling interval, in ms (its cost is one `statSync` per tick). */
 const RENDERER_POLL_MS = 300;
+
+/** How often the extension collects a pending tab click from the pane. */
+const REQUEST_POLL_MS = 250;
 
 /**
  * herdr gives the pane a PTY two columns narrower than its layout rect (its
@@ -54,6 +61,8 @@ export interface PaneControllerOptions {
 	rendererPath: string;
 	/** Runtime for the renderer; defaults to the node running pi. */
 	nodeBinary?: string;
+	/** Called when a pane click resolves to a tab (wired to `setTab`). */
+	onTabRequest?: (tab: SidebarTab) => void;
 }
 
 /**
@@ -77,12 +86,17 @@ export class PaneController {
 	private pendingTimer: ReturnType<typeof setTimeout> | null = null;
 	private pendingArgs: { ctx: ExtensionContext; config: SidebarConfig } | null =
 		null;
+	private requestTimer: ReturnType<typeof setInterval> | null = null;
+	/** Hit ranges from the last painted frame, used to resolve clicks. */
+	private lastTabHits: readonly TabHitRange[] = [];
+	private readonly onTabRequest: ((tab: SidebarTab) => void) | null;
 
 	constructor(options: PaneControllerOptions) {
 		this.pi = options.pi;
 		this.bridge = options.bridge;
 		this.rendererPath = options.rendererPath;
 		this.nodeBinary = options.nodeBinary ?? process.execPath;
+		this.onTabRequest = options.onTabRequest ?? null;
 	}
 
 	isActive(): boolean {
@@ -123,6 +137,7 @@ export class PaneController {
 		this.snapshotPath = resolveSnapshotPath(ownPane);
 		this.lastSignature = "";
 		this.lastWriteAt = 0;
+		this.lastTabHits = [];
 
 		// Label first so a later `findSidebarPane` never adopts a stray pane.
 		renamePane(bin, paneId, PANE_LABEL);
@@ -136,6 +151,7 @@ export class PaneController {
 			this.snapshotPath,
 			RENDERER_POLL_MS,
 		);
+		this.startRequestPolling();
 		return true;
 	}
 
@@ -165,6 +181,10 @@ export class PaneController {
 			clearTimeout(this.pendingTimer);
 			this.pendingTimer = null;
 		}
+		if (this.requestTimer) {
+			clearInterval(this.requestTimer);
+			this.requestTimer = null;
+		}
 		this.pendingArgs = null;
 		const bin = herdrBinary();
 		const paneId = this.paneId;
@@ -179,6 +199,28 @@ export class PaneController {
 		this.snapshotPath = null;
 		this.snapshotKey = null;
 		this.lastSignature = "";
+		this.lastTabHits = [];
+	}
+
+	/**
+	 * Collect tab clicks left by the renderer. Polled rather than event-driven so a
+	 * click works while the agent is idle, with no engine event to piggyback on.
+	 */
+	private startRequestPolling(): void {
+		if (this.requestTimer) return;
+		this.requestTimer = setInterval(() => this.pollClickRequest(), REQUEST_POLL_MS);
+		if (typeof this.requestTimer.unref === "function") {
+			this.requestTimer.unref();
+		}
+	}
+
+	private pollClickRequest(): void {
+		const path = this.snapshotPath;
+		if (!path || !this.onTabRequest) return;
+		const request = consumeClickRequest(resolveRequestPath(path));
+		if (!request) return;
+		const tab = mapClickToTab(request, this.lastTabHits);
+		if (tab) this.onTabRequest(tab);
 	}
 
 	/**
@@ -227,6 +269,7 @@ export class PaneController {
 		});
 
 		const lines = frame.lines;
+		this.lastTabHits = frame.tabHits;
 		const signature = lines.join("\n");
 		if (live && signature === this.lastSignature) return;
 		this.lastSignature = signature;

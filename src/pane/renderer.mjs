@@ -63,6 +63,47 @@ const SHOW_CURSOR = "\x1b[?25h";
 const HOME = "\x1b[H";
 const CLEAR = "\x1b[2J";
 const CLEAR_TO_END = "\x1b[J";
+/**
+ * Mouse reporting: 1000 = button events, 1006 = SGR extended coordinates.
+ * herdr captures the mouse for its own UI but still forwards it to pane apps
+ * that request it (same mechanism lazygit/btop rely on).
+ */
+const ENABLE_MOUSE = "\x1b[?1000h\x1b[?1006h";
+const DISABLE_MOUSE = "\x1b[?1000l\x1b[?1006l";
+const requestPath = `${snapshotPath}.request.json`;
+
+/**
+ * SGR mouse report: CSI < button ; column ; row (M = press, m = release).
+ * We only care about a left press on the tab strip row, and we deliberately do
+ * not consume anything else, so typed input (e.g. `herdr pane run`'s relaunch
+ * command) is passed over harmlessly.
+ */
+const SGR_MOUSE = /\x1b\[<(\d+);(\d+);(\d+)([Mm])/g;
+
+function handleInput(chunk) {
+	const text = chunk.toString("utf8");
+	SGR_MOUSE.lastIndex = 0;
+	let match = SGR_MOUSE.exec(text);
+	while (match) {
+		const button = Number(match[1]);
+		const column = Number(match[2]);
+		const row = Number(match[3]);
+		const pressed = match[4] === "M";
+		// 0 = left button; 32/33/34/35 are drag variants, 64+ is the wheel.
+		if (pressed && button === 0 && row === 1 && !finished) {
+			writeRequest({ at: Date.now(), column, row });
+		}
+		match = SGR_MOUSE.exec(text);
+	}
+}
+
+function writeRequest(request) {
+	try {
+		writeFileSync(requestPath, JSON.stringify(request), "utf8");
+	} catch {
+		// Non-fatal: a dropped click just does nothing.
+	}
+}
 
 let finished = false;
 let lastSignature = "";
@@ -110,7 +151,7 @@ function paintMessage(message) {
 
 function cleanup() {
 	try {
-		process.stdout.write(SHOW_CURSOR);
+		process.stdout.write(SHOW_CURSOR + DISABLE_MOUSE);
 	} catch {
 		// Terminal already gone.
 	}
@@ -161,8 +202,19 @@ function tick() {
 }
 
 claimLock();
-process.stdout.write(HIDE_CURSOR);
+process.stdout.write(HIDE_CURSOR + ENABLE_MOUSE);
 paintMessage("Waiting for pi-sidebar…");
+
+// Clicks arrive on stdin; raw mode keeps the terminal from echoing them.
+try {
+	if (process.stdin.isTTY) {
+		process.stdin.setRawMode(true);
+	}
+	process.stdin.resume();
+	process.stdin.on("data", handleInput);
+} catch {
+	// Non-fatal: without stdin the pane is read-only.
+}
 
 const timer = setInterval(tick, pollMs);
 tick();

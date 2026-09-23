@@ -215,6 +215,11 @@ export default function (pi: ExtensionAPI): void {
 					pi,
 					bridge: skillBridge,
 					rendererPath,
+					// A click on the pane's tab strip goes through the very same path as
+					// `/sidebar tab`: persist the choice, then repaint.
+					onTabRequest: (tab) => {
+						if (currentContext) setTab(currentContext, tab);
+					},
 				});
 			}
 			paneController.setTheme(theme);

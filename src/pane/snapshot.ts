@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { type ClickRequest, parseClickRequest } from "./click.js";
 
 /** Bumped whenever {@link PaneSnapshot} changes shape. */
 export const PANE_SNAPSHOT_VERSION = 1;
@@ -85,4 +86,37 @@ export function readPaneSnapshot(path: string): PaneSnapshot | null {
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Where a click lands for the extension to collect. A sidecar file (rather than
+ * a pipe) keeps the renderer dependency-free and survives a herdr restart.
+ */
+export function resolveRequestPath(snapshotPath: string): string {
+	return `${snapshotPath}.request.json`;
+}
+
+/**
+ * Read and remove the pending click, if any. Consuming (unlinking) is what makes
+ * repeated polling idempotent: one click is handled exactly once, and a stale
+ * file from a previous session is rejected by its timestamp.
+ */
+export function consumeClickRequest(
+	path: string,
+	now: number = Date.now(),
+): ClickRequest | null {
+	if (!existsSync(path)) return null;
+	let parsed: unknown = null;
+	try {
+		parsed = JSON.parse(readFileSync(path, "utf8"));
+	} catch {
+		// Partially written file: leave it for the next poll.
+		return null;
+	}
+	try {
+		unlinkSync(path);
+	} catch {
+		// Non-fatal: the request file is best-effort.
+	}
+	return parseClickRequest(parsed, now);
 }

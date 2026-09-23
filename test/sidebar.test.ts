@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { rmSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -11,9 +11,12 @@ import {
 } from "../src/config.js";
 import { formatProjectPath, getGitInfo } from "../src/git.js";
 import { clampPaneWidth, computeSplitRatio } from "../src/pane/herdr.js";
+import { mapClickToTab, parseClickRequest } from "../src/pane/click.js";
 import { buildPaneFrame, buildPaneLines } from "../src/pane/lines.js";
 import {
+	consumeClickRequest,
 	readPaneSnapshot,
+	resolveRequestPath,
 	resolveSnapshotPath,
 	writePaneSnapshot,
 } from "../src/pane/snapshot.js";
@@ -25,7 +28,7 @@ import {
 	SkillBridge,
 	renderSkillsPanel,
 } from "../src/skills-tab.js";
-import { isSidebarTab, nextTab, renderTabBar } from "../src/tabs.js";
+import { isSidebarTab, nextTab, renderTabBar, type TabHitRange } from "../src/tabs.js";
 import {
 	formatCost,
 	formatPercent,
@@ -706,6 +709,57 @@ test("legacy buildPaneLines still returns the painted lines", () => {
 	assert.ok(Array.isArray(lines));
 	assert.ok(lines.length > 0);
 	assert.ok(lines.join("\n").includes("MODEL"));
+});
+
+// ---------------------------------------------------------------------------
+// Pane tab clicks (the "bookmark clicker")
+// ---------------------------------------------------------------------------
+
+const CLICK_HITS: TabHitRange[] = [
+	{ id: "status", start: 0, end: 6 },
+	{ id: "skills", start: 9, end: 15 },
+];
+
+test("click mapping resolves columns against the tab hit ranges", () => {
+	const at = Date.now();
+	// SGR columns are 1-based and include the 2-column gutter.
+	assert.equal(mapClickToTab({ at, column: 3, row: 1 }, CLICK_HITS), "status");
+	assert.equal(mapClickToTab({ at, column: 12, row: 1 }, CLICK_HITS), "skills");
+	// Gap between labels, the gutter itself, and any other row are misses.
+	assert.equal(mapClickToTab({ at, column: 10, row: 1 }, CLICK_HITS), null);
+	assert.equal(mapClickToTab({ at, column: 1, row: 1 }, CLICK_HITS), null);
+	assert.equal(mapClickToTab({ at, column: 12, row: 2 }, CLICK_HITS), null);
+});
+
+test("click requests are validated and expire", () => {
+	const now = Date.now();
+	assert.deepEqual(parseClickRequest({ at: now, column: 12, row: 1 }, now), {
+		at: now,
+		column: 12,
+		row: 1,
+	});
+	// Stale (dead renderer) and implausible timestamps are rejected.
+	assert.equal(parseClickRequest({ at: now - 10_000, column: 12, row: 1 }, now), null);
+	assert.equal(parseClickRequest({ at: now + 60_000, column: 12, row: 1 }, now), null);
+	// Malformed payloads never throw.
+	assert.equal(parseClickRequest({ column: 12, row: 1 }, now), null);
+	assert.equal(parseClickRequest({ at: now, column: 0, row: 1 }, now), null);
+	assert.equal(parseClickRequest("nope", now), null);
+	assert.equal(parseClickRequest(null, now), null);
+});
+
+test("click request files are consumed exactly once", () => {
+	const path = resolveRequestPath(
+		join(tmpdir(), `pi-sidebar-request-test-${process.pid}.json`),
+	);
+	writeFileSync(path, JSON.stringify({ at: Date.now(), column: 12, row: 1 }), "utf8");
+
+	const first = consumeClickRequest(path);
+	assert.equal(first?.column, 12);
+	// Consumed: a second poll must not re-apply the same click.
+	assert.equal(consumeClickRequest(path), null);
+
+	rmSync(path, { force: true });
 });
 
 test("status face drops the skill HUD but keeps model and context", () => {
