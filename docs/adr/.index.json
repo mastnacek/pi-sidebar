@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-09-03T08:26:33.434Z",
+  "lastUpdated": "2026-09-03T08:51:16.959Z",
   "records": [
     {
       "id": "ADR-001",
@@ -72,6 +72,14 @@
       "date": "2026-09-03 10:26:33",
       "file": "2026-09-03-ADR-009-master-2b1ad47-refactorminimal-replace-emoji-indic.md",
       "constraint": "[master 2b1ad47] refactor(minimal): replace emoji indicators with plai: Successfully replaced 1 block(s) in D:/01_programovani/pi/plugins/pi-sidebar/README.md.",
+      "status": "active"
+    },
+    {
+      "id": "ADR-010",
+      "title": "\"file\": \"2026-09-03-ADR-008-399f78e-refactor-remove-vertical-scrolling",
+      "date": "2026-09-03 10:51:16",
+      "file": "2026-09-03-ADR-010-file-2026-09-03-adr-008-399f78e-refactor-remove-ve.md",
+      "constraint": "\"file\": \"2026-09-03-ADR-008-399f78e-refactor-remove-vertical-scrolling: docs/adr/2026-09-03-ADR-009-master-2b1ad47-refactorminimal-replace-emoji-indic.md warning: in the working copy of 'docs/adr/.index.json', LF will be replaced by CRLF the next time Git touches it warni",
       "status": "active"
     }
   ]

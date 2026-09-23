@@ -248,9 +248,27 @@ export function registerSidebarCommands(
 
 			// 1st-level completions
 			const typed = (tokens[0] ?? "").toLowerCase();
-			const items = Object.entries(COMMAND_DOCS)
-				.filter(([key]) => key.toLowerCase().startsWith(typed))
-				.map(([value, description]) => ({ value, label: value, description }));
+			const NON_TERMINAL = new Set([
+				"extensions",
+				"statusline",
+				"mcp",
+				"lsp",
+				"width",
+				"resize",
+				"preset",
+				"branding",
+				"border",
+			]);
+			const items: AutocompleteItem[] = [];
+			for (const [key, description] of Object.entries(COMMAND_DOCS)) {
+				if (key.toLowerCase().startsWith(typed)) {
+					items.push({
+						value: NON_TERMINAL.has(key) ? `${key} ` : key,
+						label: key,
+						description,
+					});
+				}
+			}
 
 			return items.length > 0 ? items : null;
 		},
