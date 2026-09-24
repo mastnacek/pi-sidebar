@@ -47,12 +47,49 @@ export function loadGlobalConfig(): Partial<SidebarConfig> {
 	return {};
 }
 
+export function projectConfigPath(cwd: string): string {
+	return join(cwd, ".pi", "pi-sidebar.json");
+}
+
+export function loadProjectConfig(cwd: string): Partial<SidebarConfig> {
+	try {
+		const filePath = projectConfigPath(cwd);
+		if (existsSync(filePath)) {
+			const data = JSON.parse(readFileSync(filePath, "utf8"));
+			if (data && typeof data === "object") {
+				return data as Partial<SidebarConfig>;
+			}
+		}
+	} catch {
+		// Non-fatal
+	}
+	return {};
+}
+
+export function saveProjectConfig(cwd: string, config: SidebarConfig): void {
+	try {
+		const filePath = projectConfigPath(cwd);
+		mkdirSync(dirname(filePath), { recursive: true });
+		writeFileSync(filePath, JSON.stringify(config, null, 2), "utf8");
+	} catch {
+		// Non-fatal
+	}
+}
+
 export function saveGlobalConfig(config: SidebarConfig): void {
 	try {
 		mkdirSync(dirname(GLOBAL_CONFIG_PATH), { recursive: true });
 		writeFileSync(GLOBAL_CONFIG_PATH, JSON.stringify(config, null, 2), "utf8");
 	} catch {
 		// Non-fatal
+	}
+}
+
+export function saveConfig(config: SidebarConfig, isGlobal = false, cwd?: string): void {
+	if (isGlobal || !cwd) {
+		saveGlobalConfig(config);
+	} else {
+		saveProjectConfig(cwd, config);
 	}
 }
 
@@ -99,6 +136,7 @@ function resolveTab(
 
 export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 	const globalCfg = loadGlobalConfig();
+	const projectCfg = ctx.cwd ? loadProjectConfig(ctx.cwd) : {};
 	let sessionCfg: Partial<SidebarConfig> | null = null;
 
 	try {
@@ -116,33 +154,35 @@ export function resolveEffectiveConfig(ctx: ExtensionContext): SidebarConfig {
 		// Non-fatal
 	}
 
+	const base = { ...DEFAULT_CONFIG, ...globalCfg, ...projectCfg };
+
 	const resolved: SidebarConfig = {
 		enabled: resolveBoolean(
 			sessionCfg?.enabled,
-			globalCfg.enabled,
+			base.enabled,
 			DEFAULT_CONFIG.enabled,
 		),
-		tab: resolveTab(sessionCfg?.tab, globalCfg.tab, DEFAULT_CONFIG.tab),
+		tab: resolveTab(sessionCfg?.tab, base.tab, DEFAULT_CONFIG.tab),
 		paneWidth: resolveNumber(
 			sessionCfg?.paneWidth,
-			globalCfg.paneWidth,
+			base.paneWidth,
 			DEFAULT_CONFIG.paneWidth,
 			MIN_PANE_WIDTH,
 			MAX_PANE_WIDTH,
 		),
 		paneKeepAlive: resolveBoolean(
 			sessionCfg?.paneKeepAlive,
-			globalCfg.paneKeepAlive,
+			base.paneKeepAlive,
 			DEFAULT_CONFIG.paneKeepAlive,
 		),
 		showSession: resolveBoolean(
 			sessionCfg?.showSession,
-			globalCfg.showSession,
+			base.showSession,
 			DEFAULT_CONFIG.showSession,
 		),
 		showGit: resolveBoolean(
 			sessionCfg?.showGit,
-			globalCfg.showGit,
+			base.showGit,
 			DEFAULT_CONFIG.showGit,
 		),
 	};

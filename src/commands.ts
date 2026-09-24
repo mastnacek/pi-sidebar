@@ -8,7 +8,7 @@ import {
 	CONFIG_ENTRY_TYPE,
 	DEFAULT_CONFIG,
 	getActiveConfig,
-	saveGlobalConfig,
+	saveConfig,
 	setActiveConfig,
 } from "./config.js";
 import { MAX_PANE_WIDTH, MIN_PANE_WIDTH } from "./pane/herdr.js";
@@ -58,81 +58,120 @@ export function registerSidebarCommands(
 		getArgumentCompletions: async (
 			prefix: string,
 		): Promise<AutocompleteItem[] | null> => {
-			const tokens = prefix.split(/\s+/).filter(Boolean);
-			const trailingSpace = /\s$/.test(prefix);
-			const normalizedPrefix = tokens.join(" ").toLowerCase();
+			const trimmed = prefix.trimStart();
 
-			// Current-value annotation (same contract as pi-plugin-dev): the active
-			// choice carries a ✓ in its `label` and `● AKTIVNÍ` in its `description`.
-			// `value` stays clean so it can be inserted verbatim into the editor.
-			const cfgNow = getActiveConfig();
-			const mark = (active: boolean, text: string): string =>
-				active ? `${text} · ● AKTIVNÍ` : text;
+			const getCompletionsClean = async (
+				cleanPrefix: string,
+			): Promise<AutocompleteItem[] | null> => {
+				const tokens = cleanPrefix.split(/\s+/).filter(Boolean);
+				const trailingSpace = /\s$/.test(cleanPrefix);
+				const normalizedPrefix = tokens.join(" ").toLowerCase();
 
-			// 2nd-level completions
-			if (tokens.length > 1 || (trailingSpace && tokens.length === 1)) {
-				const cmd = (tokens[0] ?? "").toLowerCase();
+				const cfgNow = getActiveConfig();
+				const mark = (active: boolean, text: string): string =>
+					active ? `${text} · ● AKTIVNÍ` : text;
 
-				if (cmd === "width") {
-					// Free-form number: no completion list, let the user type it.
+				// 2nd-level completions
+				if (tokens.length > 1 || (trailingSpace && tokens.length === 1)) {
+					const cmd = (tokens[0] ?? "").toLowerCase();
+
+					if (cmd === "width") {
+						return null;
+					}
+
+					if (cmd === "tab") {
+						const tabs = [
+							{
+								value: "tab status",
+								label: `tab status${cfgNow.tab === "status" ? " ✓" : ""}`,
+								description: mark(
+									cfgNow.tab === "status",
+									"Telemetrie: kontext, cena, tokeny, model, git",
+								),
+							},
+							{
+								value: "tab skills",
+								label: `tab skills${cfgNow.tab === "skills" ? " ✓" : ""}`,
+								description: mark(
+									cfgNow.tab === "skills",
+									"Skill HUD z pi-plugin-dev (reference, focus, compliance)",
+								),
+							},
+							{
+								value: "tab next",
+								label: "tab next",
+								description: "Přepnout na další záložku",
+							},
+							{
+								value: "tab prev",
+								label: "tab prev",
+								description: "Přepnout na předchozí záložku",
+							},
+						];
+						const filtered = tabs.filter((i) =>
+							i.value.toLowerCase().startsWith(normalizedPrefix),
+						);
+						return filtered.length > 0 ? filtered : null;
+					}
+
 					return null;
 				}
 
-				if (cmd === "tab") {
-					const tabs = [
-						{
-							value: "tab status",
-							label: `tab status${cfgNow.tab === "status" ? " ✓" : ""}`,
-							description: mark(
-								cfgNow.tab === "status",
-								"Telemetrie: kontext, cena, tokeny, model, git",
-							),
-						},
-						{
-							value: "tab skills",
-							label: `tab skills${cfgNow.tab === "skills" ? " ✓" : ""}`,
-							description: mark(
-								cfgNow.tab === "skills",
-								"Skill HUD z pi-plugin-dev (reference, focus, compliance)",
-							),
-						},
-						{
-							value: "tab next",
-							label: "tab next",
-							description: "Přepnout na další záložku",
-						},
-						{
-							value: "tab prev",
-							label: "tab prev",
-							description: "Přepnout na předchozí záložku",
-						},
-					];
-					const filtered = tabs.filter((i) =>
-						i.value.toLowerCase().startsWith(normalizedPrefix),
-					);
-					return filtered.length > 0 ? filtered : null;
+				// 1st-level completions
+				const typed = (tokens[0] ?? "").toLowerCase();
+				const items: AutocompleteItem[] = [];
+
+				if ("--global".startsWith(typed)) {
+					items.push({
+						value: "--global ",
+						label: "--global",
+						description: "Uložit následující nastavení globálně (~/.pi/agent/)",
+					});
 				}
 
-				return null;
+				for (const [key, description] of Object.entries(COMMAND_DOCS)) {
+					if (!key.toLowerCase().startsWith(typed)) continue;
+					const flag =
+						key === "on" ? cfgNow.enabled : key === "off" ? !cfgNow.enabled : undefined;
+					const state =
+						flag === undefined ? "" : flag ? " · ● ZAPNUTO" : " · ○ VYPNUTO";
+					items.push({
+						value: NON_TERMINAL.has(key) ? `${key} ` : key,
+						label: key,
+						description: `${description}${state}`,
+					});
+				}
+
+				return items.length > 0 ? items : null;
+			};
+
+			if (trimmed.startsWith("--global")) {
+				const afterGlobal = trimmed.slice(8).trimStart();
+				const hasTrailingSpace = trimmed.length > 8 || /\s$/.test(prefix);
+
+				if (!hasTrailingSpace && afterGlobal === "") {
+					return [
+						{
+							value: "--global ",
+							label: "--global",
+							description: "Uložit následující nastavení globálně (~/.pi/agent/)",
+						},
+					];
+				}
+
+				const subCompletions = await getCompletionsClean(afterGlobal);
+				if (!subCompletions) return null;
+
+				return subCompletions
+					.filter((item) => item.label !== "--global")
+					.map((item) => ({
+						value: `--global ${item.value}`,
+						label: item.label,
+						description: item.description,
+					}));
 			}
 
-			// 1st-level completions
-			const typed = (tokens[0] ?? "").toLowerCase();
-			const items: AutocompleteItem[] = [];
-			for (const [key, description] of Object.entries(COMMAND_DOCS)) {
-				if (!key.toLowerCase().startsWith(typed)) continue;
-				const flag =
-					key === "on" ? cfgNow.enabled : key === "off" ? !cfgNow.enabled : undefined;
-				const state =
-					flag === undefined ? "" : flag ? " · ● ZAPNUTO" : " · ○ VYPNUTO";
-				items.push({
-					value: NON_TERMINAL.has(key) ? `${key} ` : key,
-					label: key,
-					description: `${description}${state}`,
-				});
-			}
-
-			return items.length > 0 ? items : null;
+			return getCompletionsClean(trimmed);
 		},
 
 		handler: async (args: string, ctx: ExtensionCommandContext) => {
@@ -305,9 +344,7 @@ export function registerSidebarCommands(
 
 			setActiveConfig(nextConfig);
 
-			if (isGlobal) {
-				saveGlobalConfig(nextConfig);
-			}
+			saveConfig(nextConfig, isGlobal, ctx.cwd);
 
 			// Persist in the current session log (TUI/session state, never LLM context).
 			pi.appendEntry(CONFIG_ENTRY_TYPE, nextConfig);
